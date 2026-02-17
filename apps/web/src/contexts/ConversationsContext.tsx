@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { api, apiGet, apiPost, apiDelete } from "@/lib/api";
 
 export interface Conversation {
   id: string;
@@ -33,11 +34,11 @@ const ConversationsContext = createContext<ConversationsContextValue>({
   conversations: [],
   isLoading: true,
   activeId: null,
-  setActiveId: () => {},
+  setActiveId: () => { },
   createConversation: async () => ({ id: "", title: "", lastMessage: "", updatedAt: "", createdAt: "" }),
-  deleteConversation: async () => {},
-  renameConversation: async () => {},
-  refreshConversations: async () => {},
+  deleteConversation: async () => { },
+  renameConversation: async () => { },
+  refreshConversations: async () => { },
 });
 
 export function useConversations() {
@@ -52,9 +53,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   const refreshConversations = useCallback(async () => {
     try {
-      const res = await fetch("/api/conversations");
-      if (!res.ok) throw new Error("Failed to load conversations");
-      const data = await res.json();
+      const data = await apiGet<{ conversations: Conversation[] }>("/api/conversations");
       setConversations(data.conversations || []);
     } catch (err) {
       console.error("Failed to load conversations", err);
@@ -70,13 +69,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   const createConversation = useCallback(
     async (title?: string) => {
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title || "New Chat" }),
+      const conv = await apiPost<Conversation>("/api/conversations", {
+        title: title || "New Chat",
       });
-      if (!res.ok) throw new Error("Failed to create conversation");
-      const conv: Conversation = await res.json();
       setConversations((prev) => [conv, ...prev]);
       setActiveId(conv.id);
       router.push(`/chat/${conv.id}`);
@@ -87,10 +82,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   const deleteConversation = useCallback(
     async (id: string) => {
-      const res = await fetch(`/api/conversations?id=${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete conversation");
+      await apiDelete(`/api/conversations?id=${id}`);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (activeId === id) {
         // Navigate to /chat (new chat) if the active conversation is deleted
@@ -102,12 +94,22 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   );
 
   const renameConversation = useCallback(async (id: string, title: string) => {
-    const res = await fetch(`/api/conversations?id=${id}`, {
+    await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "")}/api/conversations?id=${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title })
     });
-    if (!res.ok) throw new Error("Failed to rename conversation");
+    // Or add apiPatch to api.ts. For now, native fetch is fine or I can add apiPatch.
+    // Let's use apiPost/apiGet/apiDelete as existing. I will use native fetch for PATCH or add apiPatch if I want consistency.
+    // Let's add apiPatch to api.ts quickly or just use fetch here. 
+    // Wait, I should probably stick to consistency. I checked api.ts and it has apiGet, apiPost, apiDelete.
+    // I can just use the generic api function: api("/api/conversations...", { method: "PATCH", json: { title } })
+
+    await api(`/api/conversations?id=${id}`, {
+      method: "PATCH",
+      json: { title }
+    });
+
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, title } : c))
     );

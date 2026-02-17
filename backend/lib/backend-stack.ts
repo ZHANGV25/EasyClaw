@@ -147,6 +147,28 @@ export class BackendStack extends cdk.Stack {
     stateSnapshotBucket.grantPut(stateUploadLambda);
     stateSnapshotBucket.grantRead(stateUploadLambda);
 
+    const usageLambda = new nodejs.NodejsFunction(this, 'UsageLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/usage.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(usageLambda);
+
+    const creditsLambda = new nodejs.NodejsFunction(this, 'CreditsLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/credits.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(creditsLambda);
+
+    const conversationsLambda = new nodejs.NodejsFunction(this, 'ConversationsLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/conversations.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(conversationsLambda);
+    db.secret?.grantWrite(conversationsLambda); // Needed for INSERT/UPDATE/DELETE
+
     // 6. API Gateway
     const api = new apigateway.RestApi(this, 'EasyClawApi', {
       restApiName: 'EasyClaw Service',
@@ -170,6 +192,22 @@ export class BackendStack extends cdk.Stack {
     const telegramResource = apiRoot.addResource('telegram');
     const telegramConnect = telegramResource.addResource('connect');
     telegramConnect.addMethod('POST', new apigateway.LambdaIntegration(telegramLambda));
+
+    // GET /api/usage
+    const usageResource = apiRoot.addResource('usage');
+    usageResource.addMethod('GET', new apigateway.LambdaIntegration(usageLambda));
+
+    // GET /api/credits/history
+    const creditsResource = apiRoot.addResource('credits');
+    const creditsHistory = creditsResource.addResource('history');
+    creditsHistory.addMethod('GET', new apigateway.LambdaIntegration(creditsLambda));
+
+    // /api/conversations (GET, POST, PATCH, DELETE)
+    const conversationsResource = apiRoot.addResource('conversations');
+    conversationsResource.addMethod('GET', new apigateway.LambdaIntegration(conversationsLambda));
+    conversationsResource.addMethod('POST', new apigateway.LambdaIntegration(conversationsLambda));
+    conversationsResource.addMethod('PATCH', new apigateway.LambdaIntegration(conversationsLambda));
+    conversationsResource.addMethod('DELETE', new apigateway.LambdaIntegration(conversationsLambda));
 
     // Internal API (Protected - TODO: Add Auth)
     const internal = apiRoot.addResource('internal');

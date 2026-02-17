@@ -58,3 +58,17 @@ CREATE TABLE IF NOT EXISTS state_snapshots (
     version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 6. Transactions Table (Credits History)
+CREATE TABLE IF NOT EXISTS transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC(10, 4) NOT NULL, -- Positive for purchase, negative for usage
+    type VARCHAR(50) NOT NULL CHECK (type IN ('PURCHASE', 'USAGE', 'FREE_TIER', 'REFUND')),
+    description TEXT,
+    meta JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for history queries
+CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, created_at DESC);

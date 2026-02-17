@@ -4,7 +4,7 @@
  * Auth tokens will be attached automatically via Clerk's middleware.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 interface FetchOptions extends RequestInit {
   json?: unknown;

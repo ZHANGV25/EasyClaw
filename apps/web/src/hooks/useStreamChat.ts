@@ -176,7 +176,10 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
       const fetchLoop = async () => {
         try {
-          const res = await fetch("/api/chat", {
+          // Use the real backend API URL from env
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || '';
+
+          const res = await fetch(`${apiUrl}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -202,19 +205,13 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
               return;
             }
 
-            if (error.error === "CONTAINER_STARTING") {
-              setIsWaking(true);
-              setTimeout(fetchLoop, 2000);
-              return;
-            }
-
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
                   ? {
-                      ...m,
-                      content: `${error.message || "Something went wrong."}`,
-                    }
+                    ...m,
+                    content: `${error.message || "Something went wrong."}`,
+                  }
                   : m
               )
             );
@@ -224,73 +221,20 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
           setIsWaking(false);
 
-          const reader = res.body?.getReader();
-          if (!reader) throw new Error("No reader available");
+          // Handle JSON response (Real Backend)
+          const data = await res.json();
 
-          const decoder = new TextDecoder();
-          let buffer = "";
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, content: data.message }
+                : m
+            )
+          );
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const parts = buffer.split("\n\n");
-            buffer = parts.pop() ?? "";
-
-            for (const part of parts) {
-              const line = part.trim();
-              if (!line.startsWith("data: ")) continue;
-
-              const jsonStr = line.replace(/^data: /, "");
-              try {
-                const event = JSON.parse(jsonStr);
-
-                if (event.type === "token") {
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, content: m.content + event.content }
-                        : m
-                    )
-                  );
-                } else if (event.type === "activity") {
-                  setMessages((prev) =>
-                    prev.map((m) => {
-                      if (m.id !== assistantId) return m;
-                      
-                      const step = event.step as AgentStep;
-                      const currentActivity = m.activity || [];
-                      
-                      // Check if we're updating an existing step
-                      const existingIndex = currentActivity.findIndex(s => s.id === step.id);
-                      
-                      let newActivity;
-                      if (existingIndex >= 0) {
-                         newActivity = [...currentActivity];
-                         newActivity[existingIndex] = step;
-                      } else {
-                         newActivity = [...currentActivity, step];
-                      }
-                      
-                      return { ...m, activity: newActivity };
-                    })
-                  );
-                } else if (event.type === "artifact") {
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, artifact: event.artifact as Artifact }
-                        : m
-                    )
-                  );
-                } else if (event.type === "done") {
-                  setLastUsage(event.usage);
-                }
-              } catch (e) {
-                console.warn("Failed to parse SSE event", e);
-              }
-            }
+          if (data.status === "QUEUED") {
+            // If a job was started, we could optionally poll for updates here
+            // For now, just show the confirmation message
           }
 
           setIsStreaming(false);
@@ -301,9 +245,9 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
               prev.map((m) =>
                 m.id === assistantId
                   ? {
-                      ...m,
-                      content: "Connection lost. Please try again.",
-                    }
+                    ...m,
+                    content: "Connection lost. Please try again.",
+                  }
                   : m
               )
             );
