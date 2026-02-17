@@ -1,0 +1,38 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "bin": {
+    "backend": "bin/backend.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.160",
+    "@types/jest": "^30",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.16.0",
+    "aws-cdk": "2.1106.0",
+    "jest": "^30",
+    "ts-jest": "^29",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.992.0",
+    "@aws-sdk/client-s3": "^3.992.0",
+    "@aws-sdk/client-secrets-manager": "^3.992.0",
+    "@aws-sdk/s3-request-presigner": "^3.992.0",
+    "@langchain/aws": "^1.2.3",
+    "@langchain/core": "^1.1.24",
+    "aws-cdk-lib": "^2.238.0",
+    "aws-lambda": "^1.0.7",
+    "constructs": "^10.0.0",
+    "dotenv": "^17.3.1",
+    "esbuild": "^0.27.3",
+    "pg": "^8.18.0"
+  }
+}
