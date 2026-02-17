@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Artifact } from "@/types/artifacts";
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  artifact?: Artifact;
 }
 
 export interface UsageData {
@@ -15,77 +17,202 @@ export interface UsageData {
   costUsd: number;
 }
 
+interface HistoryResponse {
+  messages: {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    createdAt: string;
+  }[];
+  hasMore: boolean;
+}
+
 interface UseStreamChatReturn {
   messages: ChatMessage[];
   isStreaming: boolean;
   isWaking: boolean;
+  isLoadingHistory: boolean;
+  hasMoreHistory: boolean;
   showAddCreditsModal: boolean;
   setShowAddCreditsModal: (show: boolean) => void;
   lastUsage: UsageData | null;
   sendMessage: (content: string) => Promise<void>;
+  loadMoreHistory: () => Promise<void>;
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Hey! 👋 I'm your EasyClaw assistant. I can help you with research, reminders, writing, and everyday tasks. What can I help you with?",
+    "Hey! I'm your EasyClaw assistant. I can help you with research, reminders, writing, and everyday tasks. What can I help you with?",
   timestamp: new Date(),
 };
 
-export function useStreamChat(): UseStreamChatReturn {
+export function useStreamChat(conversationId?: string): UseStreamChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isWaking, setIsWaking] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
   const [lastUsage, setLastUsage] = useState<UsageData | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const assistantIdRef = useRef<string | null>(null);
+  const loadedConvRef = useRef<string | null>(null);
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return;
+  // Load conversation messages when conversationId changes
+  useEffect(() => {
+    if (!conversationId) {
+      // New conversation — show welcome message
+      setMessages([WELCOME_MESSAGE]);
+      setHasMoreHistory(false);
+      loadedConvRef.current = null;
+      return;
+    }
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: content.trim(),
-      timestamp: new Date(),
-    };
+    // Don't reload if already loaded
+    if (loadedConvRef.current === conversationId) return;
+    loadedConvRef.current = conversationId;
 
-    const assistantId = `assistant-${Date.now()}`;
-    assistantIdRef.current = assistantId;
-
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-      { id: assistantId, role: "assistant", content: "", timestamp: new Date() },
-    ]);
-    
-    setIsStreaming(true);
-    setIsWaking(false);
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const fetchLoop = async () => {
+    async function loadMessages() {
+      setIsLoadingHistory(true);
+      setMessages([]);
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: content.trim() }),
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `/api/conversations/${conversationId}/messages?limit=50`
+        );
+        if (!res.ok) throw new Error("Failed to load messages");
+        const data: HistoryResponse = await res.json();
 
-        if (!res.ok) {
-          const error = await res.json().catch(() => ({}));
-          
-          if (error.error === "NO_CREDITS") {
-            setShowAddCreditsModal(true);
+        if (data.messages.length > 0) {
+          const msgs: ChatMessage[] = data.messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.createdAt),
+          }));
+          setMessages(msgs);
+          setHasMoreHistory(data.hasMore);
+        } else {
+          setMessages([WELCOME_MESSAGE]);
+          setHasMoreHistory(false);
+        }
+      } catch (err) {
+        console.error("Failed to load conversation messages", err);
+        setMessages([WELCOME_MESSAGE]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    }
+
+    loadMessages();
+  }, [conversationId]);
+
+  // Load more (older) messages
+  const loadMoreHistory = useCallback(async () => {
+    if (isLoadingHistory || !hasMoreHistory || !conversationId) return;
+
+    setIsLoadingHistory(true);
+    try {
+      const firstMessage = messages[0];
+      if (!firstMessage) return;
+
+      const res = await fetch(
+        `/api/conversations/${conversationId}/messages?limit=20&before=${firstMessage.id}`
+      );
+      if (!res.ok) throw new Error("Failed to load more");
+      const data: HistoryResponse = await res.json();
+
+      if (data.messages.length > 0) {
+        const olderMessages: ChatMessage[] = data.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          timestamp: new Date(m.createdAt),
+        }));
+        setMessages((prev) => [...olderMessages, ...prev]);
+      }
+      setHasMoreHistory(data.hasMore);
+    } catch (err) {
+      console.error("Failed to load more messages", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [messages, isLoadingHistory, hasMoreHistory, conversationId]);
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim()) return;
+
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: content.trim(),
+        timestamp: new Date(),
+      };
+
+      const assistantId = `assistant-${Date.now()}`;
+      assistantIdRef.current = assistantId;
+
+      setMessages((prev) => [
+        ...prev,
+        userMessage,
+        {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        },
+      ]);
+
+      setIsStreaming(true);
+      setIsWaking(false);
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const fetchLoop = async () => {
+        try {
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: content.trim(),
+              conversationId: conversationId || undefined,
+            }),
+            signal: controller.signal,
+          });
+
+          if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+
+            if (error.error === "NO_CREDITS") {
+              setShowAddCreditsModal(true);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: "You have run out of credits." }
+                    : m
+                )
+              );
+              setIsStreaming(false);
+              return;
+            }
+
+            if (error.error === "CONTAINER_STARTING") {
+              setIsWaking(true);
+              setTimeout(fetchLoop, 2000);
+              return;
+            }
+
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? { ...m, content: "⚠️ You have run out of credits." }
+                  ? {
+                      ...m,
+                      content: `${error.message || "Something went wrong."}`,
+                    }
                   : m
               )
             );
@@ -93,94 +220,90 @@ export function useStreamChat(): UseStreamChatReturn {
             return;
           }
 
-          if (error.error === "CONTAINER_STARTING") {
-            setIsWaking(true);
-            // Poll after 2 seconds
-            setTimeout(fetchLoop, 2000);
-            return;
-          }
+          setIsWaking(false);
 
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: `⚠️ ${error.message || "Something went wrong."}` }
-                : m
-            )
-          );
-          setIsStreaming(false);
-          return;
-        }
+          const reader = res.body?.getReader();
+          if (!reader) throw new Error("No reader available");
 
-        // Successfully connected, no longer waking
-        setIsWaking(false);
+          const decoder = new TextDecoder();
+          let buffer = "";
 
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("No reader available");
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-        const decoder = new TextDecoder();
-        let buffer = "";
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split("\n\n");
+            buffer = parts.pop() ?? "";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+            for (const part of parts) {
+              const line = part.trim();
+              if (!line.startsWith("data: ")) continue;
 
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop() ?? "";
+              const jsonStr = line.replace(/^data: /, "");
+              try {
+                const event = JSON.parse(jsonStr);
 
-          for (const part of parts) {
-            const line = part.trim();
-            if (!line.startsWith("data: ")) continue;
-            
-            const jsonStr = line.replace(/^data: /, "");
-            try {
-              const event = JSON.parse(jsonStr);
-
-              if (event.type === "token") {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId
-                      ? { ...m, content: m.content + event.content }
-                      : m
-                  )
-                );
-              } else if (event.type === "done") {
-                setLastUsage(event.usage);
+                if (event.type === "token") {
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId
+                        ? { ...m, content: m.content + event.content }
+                        : m
+                    )
+                  );
+                } else if (event.type === "artifact") {
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId
+                        ? { ...m, artifact: event.artifact as Artifact }
+                        : m
+                    )
+                  );
+                } else if (event.type === "done") {
+                  setLastUsage(event.usage);
+                }
+              } catch (e) {
+                console.warn("Failed to parse SSE event", e);
               }
-            } catch (e) {
-              console.warn("Failed to parse SSE event", e);
             }
           }
-        }
-        
-        setIsStreaming(false);
 
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          console.error("Stream error", err);
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: "⚠️ Connection lost. Please try again." }
-                : m
-            )
-          );
           setIsStreaming(false);
-          setIsWaking(false);
+        } catch (err) {
+          if ((err as Error).name !== "AbortError") {
+            console.error("Stream error", err);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      content: "Connection lost. Please try again.",
+                    }
+                  : m
+              )
+            );
+            setIsStreaming(false);
+            setIsWaking(false);
+          }
         }
-      }
-    };
+      };
 
-    fetchLoop();
-  }, []);
+      fetchLoop();
+    },
+    [conversationId]
+  );
 
-  return { 
-    messages, 
-    isStreaming, 
-    isWaking, 
-    showAddCreditsModal, 
-    setShowAddCreditsModal, 
-    lastUsage, 
-    sendMessage 
+  return {
+    messages,
+    isStreaming,
+    isWaking,
+    isLoadingHistory,
+    hasMoreHistory,
+    showAddCreditsModal,
+    setShowAddCreditsModal,
+    lastUsage,
+    sendMessage,
+    loadMoreHistory,
   };
 }

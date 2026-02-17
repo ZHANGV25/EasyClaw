@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { apiGet } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 interface UserData {
   creditsBalance: number;
@@ -33,6 +34,8 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     async function fetchData() {
@@ -47,12 +50,14 @@ export default function DashboardPage() {
         setTxs(historyData.transactions);
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
+        setError("Failed to load dashboard data. Please try again.");
+        addToast("error", "Could not load dashboard data.");
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, []);
+  }, [addToast]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -67,8 +72,40 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-8 animate-pulse">
+          <div className="h-8 w-32 bg-[var(--color-surface)] rounded-lg" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+                <div className="h-4 w-24 bg-[var(--color-bg-secondary)] rounded mb-3" />
+                <div className="h-8 w-20 bg-[var(--color-bg-secondary)] rounded mb-4" />
+                <div className="h-9 w-full bg-[var(--color-bg-secondary)] rounded-lg" />
+              </div>
+            ))}
+          </div>
+          <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+            <div className="h-5 w-28 bg-[var(--color-bg-secondary)] rounded mb-6" />
+            <div className="h-48 bg-[var(--color-bg-secondary)] rounded" />
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardShell>
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <div className="w-12 h-12 rounded-full bg-[var(--color-danger)]/10 flex items-center justify-center text-[var(--color-danger)] text-xl">
+            !
+          </div>
+          <p className="text-sm text-[var(--color-text-secondary)]">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+          >
+            Try Again
+          </button>
         </div>
       </DashboardShell>
     );
@@ -169,38 +206,46 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
             Recent Activity
           </h3>
-          <div className="space-y-4">
-            {txs.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between pb-4 border-b border-[var(--color-border-subtle)] last:border-0 last:pb-0">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                    tx.type === "PURCHASE" 
-                      ? "bg-[var(--color-success)]/10 text-[var(--color-success)]"
-                      : tx.type === "FREE_TIER" 
-                        ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
-                        : "bg-[var(--color-text-secondary)]/10 text-[var(--color-text-secondary)]"
-                  }`}>
-                    {tx.type === "PURCHASE" ? "+" : tx.type === "FREE_TIER" ? "★" : "-"}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                      {tx.description}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      {new Date(tx.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <span className={`text-sm font-semibold ${
-                  tx.amount >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-text-primary)]"
-                }`}>
-                  {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)}
-                </span>
+            {txs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-3xl mb-3">📭</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">No activity yet</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">Start chatting with your assistant to see usage here.</p>
               </div>
-            ))}
+            ) : (
+            <div className="space-y-4">
+              {txs.map((tx) => (
+                <div key={tx.id} className="flex items-center justify-between pb-4 border-b border-[var(--color-border-subtle)] last:border-0 last:pb-0">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      tx.type === "PURCHASE" 
+                        ? "bg-[var(--color-success)]/10 text-[var(--color-success)]"
+                        : tx.type === "FREE_TIER" 
+                          ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                          : "bg-[var(--color-text-secondary)]/10 text-[var(--color-text-secondary)]"
+                    }`}>
+                      {tx.type === "PURCHASE" ? "+" : tx.type === "FREE_TIER" ? "★" : "-"}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                        {tx.description}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        {new Date(tx.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-semibold ${
+                    tx.amount >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-text-primary)]"
+                  }`}>
+                    {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            )}
           </div>
         </div>
-      </div>
-    </DashboardShell>
-  );
-}
+      </DashboardShell>
+    );
+  }

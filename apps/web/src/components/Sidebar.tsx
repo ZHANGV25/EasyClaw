@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { UserButton, useUser, useClerk } from "@clerk/nextjs";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useConversations } from "@/contexts/ConversationsContext";
 
 interface SidebarProps {
   mobileMenuOpen: boolean;
@@ -14,13 +16,23 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
   const { user } = useUser();
   const { signOut } = useClerk();
   const pathname = usePathname();
+  const router = useRouter();
+  const {
+    conversations,
+    isLoading: convsLoading,
+    activeId,
+    createConversation,
+    deleteConversation,
+    renameConversation,
+  } = useConversations();
+
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   const navItems = [
     { href: "/dashboard", label: "Overview", icon: (
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
-    )},
-    { href: "/chat", label: "Chat", icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" /></svg>
     )},
     { href: "/settings", label: "Settings", icon: (
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.581-.495.644-.869l.214-1.28Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
@@ -30,14 +42,47 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
     )},
   ];
 
+  const handleNewChat = async () => {
+    try {
+      await createConversation();
+      setMobileMenuOpen(false);
+    } catch (err) {
+      console.error("Failed to create conversation", err);
+    }
+  };
+
+  const startRename = (id: string, currentTitle: string) => {
+    setRenamingId(id);
+    setRenameValue(currentTitle);
+    setMenuOpenId(null);
+  };
+
+  const submitRename = async () => {
+    if (renamingId && renameValue.trim()) {
+      await renameConversation(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const handleDelete = async (id: string) => {
+    setMenuOpenId(null);
+    if (confirm("Delete this conversation?")) {
+      await deleteConversation(id);
+    }
+  };
+
+  const isOnChatPage = pathname.startsWith("/chat");
+
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-bg-secondary)] border-r border-[var(--color-border-subtle)] transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-bg-secondary)] border-r border-[var(--color-border-subtle)] transform transition-transform duration-300 lg:relative lg:translate-x-0 flex flex-col ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         } ${className}`}
       >
-        <div className="h-16 flex items-center px-6 border-b border-[var(--color-border-subtle)]">
+        {/* Header */}
+        <div className="h-16 flex items-center px-6 border-b border-[var(--color-border-subtle)] shrink-0">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
             <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-white font-bold text-sm">
               EC
@@ -48,27 +93,149 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
           </Link>
         </div>
 
-        <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
-                  isActive
-                    ? "bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]"
-                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {/* New Chat Button */}
+        <div className="px-4 py-3 shrink-0">
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--color-accent)] text-white text-sm font-semibold hover:bg-[var(--color-accent-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)] cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            New Chat
+          </button>
+        </div>
 
-        <div className="absolute bottom-0 w-full p-4 border-t border-[var(--color-border-subtle)]">
+        {/* Conversations List */}
+        <div className="flex-1 overflow-y-auto px-3 pb-2 custom-scrollbar">
+          {isOnChatPage && (
+            <>
+              <p className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+                Conversations
+              </p>
+              {convsLoading ? (
+                <div className="space-y-2 px-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-9 bg-[var(--color-surface)] rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : conversations.length === 0 ? (
+                <p className="px-2 py-4 text-xs text-[var(--color-text-muted)] italic text-center">
+                  No chats yet. Click "New Chat" to start!
+                </p>
+              ) : (
+                <div className="space-y-0.5">
+                  {conversations.map((conv) => {
+                    const isActive = activeId === conv.id;
+
+                    if (renamingId === conv.id) {
+                      return (
+                        <div key={conv.id} className="px-2 py-1">
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={submitRename}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") submitRename();
+                              if (e.key === "Escape") {
+                                setRenamingId(null);
+                                setRenameValue("");
+                              }
+                            }}
+                            className="w-full px-2 py-1.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-accent)] text-xs text-[var(--color-text-primary)] focus:outline-none"
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={conv.id}
+                        className={`group relative flex items-center rounded-lg transition-colors duration-150 ${
+                          isActive
+                            ? "bg-[var(--color-surface)] border border-[var(--color-border-subtle)]"
+                            : "hover:bg-[var(--color-surface)]/50"
+                        }`}
+                      >
+                        <Link
+                          href={`/chat/${conv.id}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex-1 min-w-0 px-3 py-2 cursor-pointer"
+                        >
+                          <p className="text-sm text-[var(--color-text-primary)] truncate">
+                            {conv.title}
+                          </p>
+                          <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                            {conv.lastMessage || "No messages yet"}
+                          </p>
+                        </Link>
+
+                        {/* Three-dot menu */}
+                        <div className="relative shrink-0 pr-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenId(menuOpenId === conv.id ? null : conv.id);
+                            }}
+                            className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-[var(--color-bg-secondary)] transition-all cursor-pointer"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-[var(--color-text-muted)]">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                            </svg>
+                          </button>
+
+                          {menuOpenId === conv.id && (
+                            <div className="absolute right-0 top-8 z-50 w-36 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-xl py-1 animate-fade-in">
+                              <button
+                                onClick={() => startRename(conv.id, conv.title)}
+                                className="w-full text-left px-3 py-1.5 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer"
+                              >
+                                Rename
+                              </button>
+                              <button
+                                onClick={() => handleDelete(conv.id)}
+                                className="w-full text-left px-3 py-1.5 text-xs text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <hr className="my-3 border-[var(--color-border-subtle)]" />
+            </>
+          )}
+
+          {/* Nav Items */}
+          <nav className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
+                    isActive
+                      ? "bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* User Section */}
+        <div className="p-4 border-t border-[var(--color-border-subtle)] shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <UserButton afterSignOutUrl="/" />
             <div className="flex-1 min-w-0">

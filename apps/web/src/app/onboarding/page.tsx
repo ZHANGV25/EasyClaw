@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/Toast";
 
 const STEPS = ["Your Name", "Timezone", "Interests", "Assistant"];
 
@@ -33,6 +34,7 @@ function detectTimezone(): string {
 export default function OnboardingPage() {
   const { user } = useUser();
   const router = useRouter();
+  const { addToast } = useToast();
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -70,10 +72,15 @@ export default function OnboardingPage() {
         body: JSON.stringify(form),
       });
       if (res.ok) {
+        addToast("success", "Your assistant is being set up! 🚀");
         router.push("/chat");
+      } else {
+        const error = await res.json().catch(() => ({}));
+        addToast("error", error.message || "Failed to set up your assistant. Please try again.");
       }
     } catch (err) {
       console.error("Onboarding failed:", err);
+      addToast("error", "Network error. Please check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
