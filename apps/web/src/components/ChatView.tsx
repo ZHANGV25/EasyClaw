@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { AddCreditsModal } from "@/components/AddCreditsModal";
 import { ArtifactCard } from "@/components/ArtifactCard";
 import { ArtifactPanel } from "@/components/ArtifactPanel";
+import { ActivityBlock } from "@/components/ActivityBlock"; // Import ActivityBlock
 import { Artifact } from "@/types/artifacts";
 
 interface ChatViewProps {
@@ -195,6 +196,14 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                         : ""
                     }`}
                   >
+                    {/* Activity Block */}
+                    {message.role === "assistant" && message.activity && (
+                      <ActivityBlock 
+                        steps={message.activity} 
+                        isStreaming={isStreaming && i === messages.length - 1} 
+                      />
+                    )}
+
                     {/* Message Bubble */}
                     <div
                       className={`rounded-2xl px-4 py-3 shadow-sm ${

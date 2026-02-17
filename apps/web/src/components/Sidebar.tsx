@@ -108,8 +108,6 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto px-3 pb-2 custom-scrollbar">
-          {isOnChatPage && (
-            <>
               <p className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
                 Conversations
               </p>
@@ -209,8 +207,6 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
               )}
 
               <hr className="my-3 border-[var(--color-border-subtle)]" />
-            </>
-          )}
 
           {/* Nav Items */}
           <nav className="space-y-1">

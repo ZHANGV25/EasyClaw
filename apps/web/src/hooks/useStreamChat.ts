@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Artifact } from "@/types/artifacts";
+import { AgentStep } from "@/types/activity";
 
 export interface ChatMessage {
   id: string;
@@ -9,6 +10,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   artifact?: Artifact;
+  activity?: import("@/types/activity").AgentStep[];
 }
 
 export interface UsageData {
@@ -251,6 +253,28 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
                         ? { ...m, content: m.content + event.content }
                         : m
                     )
+                  );
+                } else if (event.type === "activity") {
+                  setMessages((prev) =>
+                    prev.map((m) => {
+                      if (m.id !== assistantId) return m;
+                      
+                      const step = event.step as AgentStep;
+                      const currentActivity = m.activity || [];
+                      
+                      // Check if we're updating an existing step
+                      const existingIndex = currentActivity.findIndex(s => s.id === step.id);
+                      
+                      let newActivity;
+                      if (existingIndex >= 0) {
+                         newActivity = [...currentActivity];
+                         newActivity[existingIndex] = step;
+                      } else {
+                         newActivity = [...currentActivity, step];
+                      }
+                      
+                      return { ...m, activity: newActivity };
+                    })
                   );
                 } else if (event.type === "artifact") {
                   setMessages((prev) =>

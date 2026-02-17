@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
+import { AgentStep } from "@/types/activity";
 
 /**
  * Mock SSE chat endpoint.
  * Simulates the real backend contract:
  *   data: {"type": "token", "content": "..."}
+ *   data: {"type": "activity", "step": {...}}
  *   data: {"type": "artifact", "artifact": {...}}
  *   data: {"type": "done", "usage": {...}}
- *
- * Replace with a proxy to the real API once the backend is ready.
  */
 
 const MOCK_RESPONSES = [
@@ -19,9 +19,13 @@ const MOCK_RESPONSES = [
 ];
 
 const BUILD_KEYWORDS = ["build", "create", "make", "generate", "write"];
+const RESEARCH_KEYWORDS = ["research", "plan", "check", "verify", "analyze"];
 
 const MOCK_ARTIFACT_RESPONSE =
   "Here's your Expense Tracker app! I've built it with React — it tracks your expenses by category with a running total. Click **Open** below to view the full source code.";
+
+const MOCK_RESEARCH_RESPONSE =
+  "I've analyzed the current market trends and found some interesting patterns. The data suggests a shift towards AI-driven tools in this sector.";
 
 const MOCK_ARTIFACT = {
   id: `artifact-${Date.now()}`,
@@ -32,53 +36,7 @@ const MOCK_ARTIFACT = {
   files: [
     {
       name: "App.tsx",
-      content: `import { useState } from "react";
-
-interface Expense {
-  id: number;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-}
-
-export default function ExpenseTracker() {
-  const [expenses, setExpenses] = useState<Expense[]>([
-    { id: 1, description: "Coffee", amount: 4.50, category: "Food", date: "2026-02-17" },
-    { id: 2, description: "Uber", amount: 12.00, category: "Transport", date: "2026-02-17" },
-    { id: 3, description: "Groceries", amount: 45.30, category: "Food", date: "2026-02-16" },
-  ]);
-
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-  return (
-    <div style={{ padding: 24, fontFamily: "Inter, sans-serif", maxWidth: 480 }}>
-      <h1>Expense Tracker</h1>
-      <p style={{ fontSize: 28, fontWeight: 700 }}>\${total.toFixed(2)}</p>
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {expenses.map(e => (
-          <li key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eee" }}>
-            <span>{e.description} <small>({e.category})</small></span>
-            <span>\${e.amount.toFixed(2)}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}`,
-    },
-    {
-      name: "index.css",
-      content: `body {
-  margin: 0;
-  background: #fafafa;
-  color: #111;
-}
-
-h1 {
-  margin: 0 0 8px;
-}
-`,
+      content: `import { useState } from "react";\n\nexport default function App() {\n  return <div>Hello World</div>;\n}`,
     },
   ],
   status: "ready" as const,
@@ -88,6 +46,11 @@ h1 {
 function shouldGenerateArtifact(message: string): boolean {
   const lower = message.toLowerCase();
   return BUILD_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+function shouldGenerateActivity(message: string): boolean {
+  const lower = message.toLowerCase();
+  return RESEARCH_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 export async function POST(request: NextRequest) {
@@ -101,45 +64,106 @@ export async function POST(request: NextRequest) {
   }
 
   const hasArtifact = shouldGenerateArtifact(message);
-  const response = hasArtifact
-    ? MOCK_ARTIFACT_RESPONSE
-    : MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)];
-  const tokens = response.split(/(?<=\s)/);
+  const hasActivity = shouldGenerateActivity(message);
+  
+  let responseText = MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)];
+  if (hasArtifact) responseText = MOCK_ARTIFACT_RESPONSE;
+  if (hasActivity) responseText = MOCK_RESEARCH_RESPONSE;
 
+  const tokens = responseText.split(/(?<=\s)/);
   const encoder = new TextEncoder();
+
   const stream = new ReadableStream({
     async start(controller) {
-      // Simulate thinking delay
-      await new Promise((r) => setTimeout(r, 600));
+      // Helper to enqueue data
+      const send = (data: any) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+      
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-      for (const token of tokens) {
-        const event = JSON.stringify({ type: "token", content: token });
-        controller.enqueue(encoder.encode(`data: ${event}\n\n`));
-        await new Promise((r) => setTimeout(r, 30 + Math.random() * 50));
+      // 1. Simulate Activity if triggered
+      if (hasActivity) {
+         // Step 1: Initial Thought
+         const thoughtStep: AgentStep = {
+            id: "step-1",
+            type: "thought",
+            label: "Planning research strategy",
+            status: "running",
+            content: "I need to look up recent trends in the requested sector."
+         };
+         send({ type: "activity", step: thoughtStep });
+         await sleep(800);
+         
+         thoughtStep.status = "done";
+         thoughtStep.durationMs = 800;
+         send({ type: "activity", step: thoughtStep });
+
+         // Step 2: Tool Call (Start)
+         const toolStep: AgentStep = {
+            id: "step-2",
+            type: "tool-call",
+            label: "Searching web for 'AI trends 2026'",
+            status: "running",
+            args: { query: "AI trends 2026", limit: 5 }
+         };
+         send({ type: "activity", step: toolStep });
+         await sleep(1500);
+
+         // Step 3: Tool Call (Done)
+         toolStep.status = "done";
+         toolStep.durationMs = 1500;
+         toolStep.output = "Found 5 relevant articles. Key themes: Autonomous Agents, Biotech AI, Sustainable Computing.";
+         send({ type: "activity", step: toolStep });
+         await sleep(500);
+
+         // Step 4: Analysis Thought
+         const analyzeStep: AgentStep = {
+             id: "step-3",
+             type: "thought",
+             label: "Synthesizing findings",
+             status: "running",
+             content: "The search results highlight a strong move towards agentic workflows. I should emphasize this."
+         };
+         send({ type: "activity", step: analyzeStep });
+         await sleep(1000);
+         
+         analyzeStep.status = "done";
+         analyzeStep.durationMs = 1000;
+         send({ type: "activity", step: analyzeStep });
+      } else {
+        // Just a small delay if no activity
+        await sleep(600);
       }
 
-      // Emit artifact event if triggered
+      // 2. Stream Text Response
+      for (const token of tokens) {
+        send({ type: "token", content: token });
+        await sleep(30 + Math.random() * 50);
+      }
+
+      // 3. Emit Artifact if triggered
       if (hasArtifact) {
-        await new Promise((r) => setTimeout(r, 300));
+        await sleep(300);
         const artifact = {
           ...MOCK_ARTIFACT,
           id: `artifact-${Date.now()}`,
           conversationId: conversationId || "",
+          // Use a simple template for now, keeping existing mock content logic if preferred
         };
-        const artifactEvent = JSON.stringify({ type: "artifact", artifact });
-        controller.enqueue(encoder.encode(`data: ${artifactEvent}\n\n`));
+        send({ type: "artifact", artifact });
       }
 
-      // Send done event
-      const doneEvent = JSON.stringify({
+      // 4. Done Event
+      send({
         type: "done",
         usage: {
           tokensIn: message.length,
-          tokensOut: response.length,
+          tokensOut: responseText.length,
           costUsd: parseFloat((0.001 + Math.random() * 0.005).toFixed(4)),
         },
       });
-      controller.enqueue(encoder.encode(`data: ${doneEvent}\n\n`));
+      
       controller.close();
     },
   });
@@ -148,7 +172,7 @@ export async function POST(request: NextRequest) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      "Connection": "keep-alive",
     },
   });
 }

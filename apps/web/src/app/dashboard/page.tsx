@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
+import { AddCreditsModal } from "@/components/AddCreditsModal";
 import { apiGet } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
@@ -35,6 +36,7 @@ export default function DashboardPage() {
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddCredits, setShowAddCredits] = useState(false);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -133,7 +135,10 @@ export default function DashboardPage() {
               </span>
               <span className="text-sm text-[var(--color-text-muted)]">USD</span>
             </div>
-            <button className="w-full py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors">
+            <button 
+              onClick={() => setShowAddCredits(true)}
+              className="w-full py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+            >
               Add Funds
             </button>
           </div>

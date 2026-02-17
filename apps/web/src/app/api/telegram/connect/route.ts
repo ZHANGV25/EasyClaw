@@ -8,3 +8,13 @@ export async function POST() {
     connected: false, // Initial state
   });
 }
+
+export async function GET() {
+  // Simulate polling for connection status
+  // randomly return true to simulate user connecting
+  const isConnected = Math.random() > 0.7;
+  
+  return NextResponse.json({
+    connected: isConnected,
+  });
+}
