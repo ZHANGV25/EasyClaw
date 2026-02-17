@@ -50,7 +50,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     try {
         const body = JSON.parse(event.body || '{}');
         const { message, conversationId } = body;
-        const userId = "user-123"; // TODO: Auth
+        const userId = "11111111-1111-1111-1111-111111111111"; // TODO: Auth
 
         if (!message) {
             return { statusCode: 400, body: JSON.stringify({ error: "Message required" }) };
@@ -113,6 +113,7 @@ Do not be verbose.`;
 
                 return {
                     statusCode: 200,
+                    headers: { "Access-Control-Allow-Origin": "*" },
                     body: JSON.stringify({
                         conversationId: finalConversationId,
                         jobId,
@@ -152,6 +153,7 @@ Do not be verbose.`;
 
                 return {
                     statusCode: 200,
+                    headers: { "Access-Control-Allow-Origin": "*" },
                     body: JSON.stringify({
                         conversationId: finalConversationId,
                         message: reply,
@@ -172,6 +174,7 @@ Do not be verbose.`;
 
         return {
             statusCode: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
             body: JSON.stringify({
                 conversationId: finalConversationId,
                 message: reply,
@@ -181,6 +184,14 @@ Do not be verbose.`;
 
     } catch (err: any) {
         console.error("Handler Error:", err);
-        return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+        return {
+            statusCode: 500,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: JSON.stringify({
+                error: (err as Error).name || "UnknownError",
+                message: (err as Error).message || "An unexpected error occurred",
+                requestId: event.requestContext?.requestId || "unknown" // Useful for CloudWatch correlation
+            })
+        };
     }
 };

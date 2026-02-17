@@ -210,7 +210,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
                 m.id === assistantId
                   ? {
                     ...m,
-                    content: `${error.message || "Something went wrong."}`,
+                    content: `${error.error || error.message || "Something went wrong."}`,
                   }
                   : m
               )

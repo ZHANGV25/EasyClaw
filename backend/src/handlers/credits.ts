@@ -3,7 +3,7 @@ import { query } from '../util/db';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
-        const userId = "user-123"; // TODO: Auth
+        const userId = "11111111-1111-1111-1111-111111111111"; // TODO: Auth
 
         const txRes = await query(
             `SELECT * FROM transactions 
@@ -32,7 +32,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             body: JSON.stringify({ transactions }),
         };
     } catch (err: any) {
-        console.error(err);
-        return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+        console.error("Handler Error:", err);
+        return {
+            statusCode: 500,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET"
+            },
+            body: JSON.stringify({
+                error: (err as Error).name || "UnknownError",
+                message: (err as Error).message || "An unexpected error occurred",
+                requestId: event.requestContext?.requestId || "unknown"
+            })
+        };
     }
 };

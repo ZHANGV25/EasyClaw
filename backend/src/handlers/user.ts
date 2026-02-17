@@ -3,7 +3,7 @@ import { query } from '../util/db';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
-        const userId = "user-123"; // TODO: Auth
+        const userId = "11111111-1111-1111-1111-111111111111"; // TODO: Auth
 
         const userRes = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
 

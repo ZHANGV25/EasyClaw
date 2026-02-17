@@ -104,9 +104,8 @@ export default function ChatView({ conversationId }: ChatViewProps) {
       <div className="flex-1 flex min-w-0 relative">
         {/* Chat Area */}
         <div
-          className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-            openArtifact ? "w-[50%]" : "w-full"
-          }`}
+          className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${openArtifact ? "w-[50%]" : "w-full"
+            }`}
         >
           {/* Waking Up Overlay */}
           {isWaking && (
@@ -184,33 +183,30 @@ export default function ChatView({ conversationId }: ChatViewProps) {
               {messages.map((message, i) => (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  } animate-fade-in`}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                    } animate-fade-in`}
                   style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
                 >
                   <div
-                    className={`max-w-[85%] sm:max-w-[75%] ${
-                      message.role === "user"
-                        ? ""
-                        : ""
-                    }`}
+                    className={`max-w-[85%] sm:max-w-[75%] ${message.role === "user"
+                      ? ""
+                      : ""
+                      }`}
                   >
                     {/* Activity Block */}
                     {message.role === "assistant" && message.activity && (
-                      <ActivityBlock 
-                        steps={message.activity} 
-                        isStreaming={isStreaming && i === messages.length - 1} 
+                      <ActivityBlock
+                        steps={message.activity}
+                        isStreaming={isStreaming && i === messages.length - 1}
                       />
                     )}
 
                     {/* Message Bubble */}
                     <div
-                      className={`rounded-2xl px-4 py-3 shadow-sm ${
-                        message.role === "user"
-                          ? "bg-[var(--color-accent)] text-white rounded-br-md"
-                          : "bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] rounded-bl-md"
-                      }`}
+                      className={`rounded-2xl px-4 py-3 shadow-sm ${message.role === "user"
+                        ? "bg-[var(--color-accent)] text-white rounded-br-md"
+                        : "bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] rounded-bl-md"
+                        }`}
                     >
                       <div className="text-sm leading-relaxed whitespace-pre-wrap">
                         {message.content}
@@ -223,11 +219,10 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                       </div>
                       {!(isStreaming && message.role === "assistant" && i === messages.length - 1) && (
                         <span
-                          className={`text-[10px] mt-1.5 block ${
-                            message.role === "user"
-                              ? "text-white/60"
-                              : "text-[var(--color-text-muted)]"
-                          }`}
+                          className={`text-[10px] mt-1.5 block ${message.role === "user"
+                            ? "text-white/60"
+                            : "text-[var(--color-text-muted)]"
+                            }`}
                         >
                           {message.timestamp.toLocaleTimeString([], {
                             hour: "2-digit",
