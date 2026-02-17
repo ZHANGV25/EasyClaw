@@ -1,4 +1,10 @@
 import Link from "next/link";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+} from "@clerk/nextjs";
 
 export default function Home() {
   return (
@@ -14,19 +20,35 @@ export default function Home() {
               EasyClaw
             </span>
           </div>
-          <nav className="flex items-center gap-6">
-            <Link
-              href="/chat"
-              className="px-5 py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)]"
-            >
-              Try It Free
-            </Link>
+          <nav className="flex items-center gap-4">
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors duration-200">
+                  Sign In
+                </button>
+              </SignInButton>
+              <Link
+                href="/sign-up"
+                className="px-5 py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)]"
+              >
+                Try It Free
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <Link
+                href="/chat"
+                className="px-5 py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)]"
+              >
+                Open Chat
+              </Link>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
           </nav>
         </div>
       </header>
 
       {/* ─── Hero ────────────────────────────────── */}
-      <section className="flex-1 flex items-center justify-center px-6 pt-24">
+      <section className="flex-1 flex items-center justify-center px-6 pt-24 pb-16">
         <div className="max-w-3xl text-center animate-slide-up">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] mb-8">
             <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
@@ -47,17 +69,70 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/chat"
+              href="/sign-up"
               className="px-8 py-3.5 rounded-xl bg-[var(--color-accent)] text-white font-semibold text-base hover:bg-[var(--color-accent-hover)] transition-all duration-300 animate-pulse-glow"
             >
               Start Chatting — It&apos;s Free
             </Link>
             <a
-              href="#features"
+              href="#how-it-works"
               className="px-8 py-3.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] font-medium text-base hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-200"
             >
               See How It Works
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── How It Works ─────────────────────────── */}
+      <section id="how-it-works" className="py-24 px-6 bg-[var(--color-bg-secondary)]">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">
+            Up and running in 60 seconds
+          </h2>
+          <p className="text-center text-[var(--color-text-secondary)] mb-16 max-w-lg mx-auto">
+            No servers, no API keys, no downloads. Just sign up and start talking.
+          </p>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                step: "01",
+                title: "Sign Up",
+                desc: "Create a free account. Tell us your name and what you need help with.",
+                icon: "✍️",
+              },
+              {
+                step: "02",
+                title: "Start Talking",
+                desc: "Chat with your assistant from the web or connect via Telegram.",
+                icon: "💬",
+              },
+              {
+                step: "03",
+                title: "Let It Work",
+                desc: "Your assistant remembers you, handles tasks, and runs 24/7 in the background.",
+                icon: "🚀",
+              },
+            ].map((item, i) => (
+              <div
+                key={item.step}
+                className="relative p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border)] transition-all duration-300 group hover:translate-y-[-2px]"
+                style={{ animationDelay: `${i * 150}ms` }}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-xs font-mono font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-2 py-1 rounded-md">
+                    {item.step}
+                  </span>
+                  <span className="text-2xl">{item.icon}</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-[var(--color-text-primary)]">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -100,10 +175,11 @@ export default function Home() {
                 title: "Best AI Models",
                 desc: "Powered by Claude, GPT-4, and Gemini. We pick the best model for each task.",
               },
-            ].map((f) => (
+            ].map((f, i) => (
               <div
                 key={f.title}
                 className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-subtle)] hover:border-[var(--color-border)] transition-all duration-300 group hover:translate-y-[-2px]"
+                style={{ animationDelay: `${i * 100}ms` }}
               >
                 <div className="text-3xl mb-4">{f.icon}</div>
                 <h3 className="text-lg font-semibold mb-2 text-[var(--color-text-primary)]">
@@ -115,6 +191,110 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ─── Pricing ──────────────────────────────── */}
+      <section id="pricing" className="py-24 px-6 bg-[var(--color-bg-secondary)]">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4">Simple, usage-based pricing</h2>
+          <p className="text-[var(--color-text-secondary)] mb-16 max-w-lg mx-auto">
+            Start free. No credit card required. Only pay for what you actually use.
+          </p>
+          <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            {/* Free Tier */}
+            <div className="p-8 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-left">
+              <div className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">
+                Free Tier
+              </div>
+              <div className="text-4xl font-bold mb-1">$0</div>
+              <div className="text-sm text-[var(--color-text-muted)] mb-6">
+                $1.00 free credits included
+              </div>
+              <ul className="space-y-3 text-sm text-[var(--color-text-secondary)]">
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  Private AI assistant
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  Web &amp; Telegram access
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  Memory &amp; personalization
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  No credit card required
+                </li>
+              </ul>
+              <Link
+                href="/sign-up"
+                className="mt-8 block w-full text-center px-6 py-3 rounded-xl bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-medium text-sm hover:bg-[var(--color-bg-elevated)] transition-all duration-200"
+              >
+                Get Started
+              </Link>
+            </div>
+
+            {/* Usage */}
+            <div className="p-8 rounded-2xl bg-[var(--color-surface)] border-2 border-[var(--color-accent)] text-left relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-[var(--color-accent)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">
+                POPULAR
+              </div>
+              <div className="text-sm font-medium text-[var(--color-accent)] mb-2">
+                Pay As You Go
+              </div>
+              <div className="text-4xl font-bold mb-1">
+                $<span className="text-2xl">varies</span>
+              </div>
+              <div className="text-sm text-[var(--color-text-muted)] mb-6">
+                Top up credits anytime
+              </div>
+              <ul className="space-y-3 text-sm text-[var(--color-text-secondary)]">
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  Everything in Free
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  Unlimited usage
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  Usage dashboard
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-[var(--color-success)]">✓</span>
+                  No surprise bills — auto-pause at $0
+                </li>
+              </ul>
+              <Link
+                href="/sign-up"
+                className="mt-8 block w-full text-center px-6 py-3 rounded-xl bg-[var(--color-accent)] text-white font-semibold text-sm hover:bg-[var(--color-accent-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)]"
+              >
+                Start Free, Upgrade Later
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CTA ──────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Ready to meet your assistant?
+          </h2>
+          <p className="text-[var(--color-text-secondary)] mb-8">
+            Sign up in seconds. No credit card, no setup, no nonsense.
+          </p>
+          <Link
+            href="/sign-up"
+            className="inline-block px-8 py-3.5 rounded-xl bg-[var(--color-accent)] text-white font-semibold text-base hover:bg-[var(--color-accent-hover)] transition-all duration-300 animate-pulse-glow"
+          >
+            Get Started Free
+          </Link>
         </div>
       </section>
 

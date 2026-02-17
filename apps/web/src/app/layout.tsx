@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "EasyClaw — Your Private AI Assistant",
   description:
     "A private, always-on AI personal assistant. No setup required. Chat from your phone or Telegram.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
