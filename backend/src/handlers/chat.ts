@@ -5,7 +5,7 @@ import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from "@langchain/
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
-const MODEL_ID = "anthropic.claude-opus-4-6-v1";
+const MODEL_ID = "us.anthropic.claude-opus-4-6-v1";
 
 // 1. Define Tools using LangChain
 const createJobTool = tool(
@@ -47,7 +47,9 @@ const model = new ChatBedrockConverse({
 const modelWithTools = model.bindTools([createJobTool, listJobsTool]);
 
 export const handler: APIGatewayProxyHandler = async (event) => {
+    console.log("Handler started", JSON.stringify(event));
     try {
+        console.log("Parsing body...");
         const body = JSON.parse(event.body || '{}');
         const { message, conversationId } = body;
         const userId = "11111111-1111-1111-1111-111111111111"; // TODO: Auth
@@ -67,6 +69,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         }
 
         // 2. Store User Message
+        console.log("Storing user message...");
         await query(
             `INSERT INTO messages (conversation_id, role, content) VALUES ($1, 'user', $2)`,
             [finalConversationId, message]
@@ -86,7 +89,9 @@ Do not be verbose.`;
             new HumanMessage(message)
         ];
 
+        console.log("Invoking model...");
         const response = await modelWithTools.invoke(messages);
+        console.log("Model response received:", JSON.stringify(response));
 
         // 4. Handle Response (Tool Calls vs Text)
         if (response.tool_calls && response.tool_calls.length > 0) {

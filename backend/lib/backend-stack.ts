@@ -83,7 +83,8 @@ export class BackendStack extends cdk.Stack {
       bundling: {
         externalModules: ['pg-native'],
       },
-      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(300),
     };
 
     // Grants
@@ -108,7 +109,10 @@ export class BackendStack extends cdk.Stack {
     // Grant Bedrock Access
     chatLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-      resources: ['arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-6-v1'],
+      resources: [
+        `arn:aws:bedrock:*::foundation-model/*`,
+        `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/*`
+      ],
     }));
 
     const userLambda = new nodejs.NodejsFunction(this, 'UserLambda', {
