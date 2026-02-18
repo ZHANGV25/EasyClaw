@@ -201,36 +201,38 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                       />
                     )}
 
-                    {/* Message Bubble */}
-                    <div
-                      className={`rounded-2xl px-4 py-3 shadow-sm ${message.role === "user"
-                        ? "bg-[var(--color-accent)] text-white rounded-br-md"
-                        : "bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] rounded-bl-md"
-                        }`}
-                    >
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.content}
-                        {isStreaming &&
-                          !isWaking &&
-                          message.role === "assistant" &&
-                          i === messages.length - 1 && (
-                            <span className="inline-block w-1.5 h-4 bg-[var(--color-text-primary)] ml-1 animate-pulse align-middle" />
-                          )}
+                    {/* Message Bubble - Hide if empty and streaming (let typing indicator show instead) */}
+                    {(!isStreaming || message.content.trim() !== "" || message.role !== "assistant" || i !== messages.length - 1) && (
+                      <div
+                        className={`rounded-2xl px-4 py-3 shadow-sm ${message.role === "user"
+                          ? "bg-[var(--color-accent)] text-white rounded-br-md"
+                          : "bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] rounded-bl-md"
+                          }`}
+                      >
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {message.content}
+                          {isStreaming &&
+                            !isWaking &&
+                            message.role === "assistant" &&
+                            i === messages.length - 1 && (
+                              <span className="inline-block w-1.5 h-4 bg-[var(--color-text-primary)] ml-1 animate-pulse align-middle" />
+                            )}
+                        </div>
+                        {!(isStreaming && message.role === "assistant" && i === messages.length - 1) && (
+                          <span
+                            className={`text-[10px] mt-1.5 block ${message.role === "user"
+                              ? "text-white/60"
+                              : "text-[var(--color-text-muted)]"
+                              }`}
+                          >
+                            {message.timestamp.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
                       </div>
-                      {!(isStreaming && message.role === "assistant" && i === messages.length - 1) && (
-                        <span
-                          className={`text-[10px] mt-1.5 block ${message.role === "user"
-                            ? "text-white/60"
-                            : "text-[var(--color-text-muted)]"
-                            }`}
-                        >
-                          {message.timestamp.toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      )}
-                    </div>
+                    )}
 
                     {/* Artifact Card — rendered below assistant message bubble */}
                     {message.artifact && message.role === "assistant" && (

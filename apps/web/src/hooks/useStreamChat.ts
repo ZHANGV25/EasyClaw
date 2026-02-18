@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useConversations } from "@/contexts/ConversationsContext";
 import { Artifact } from "@/types/artifacts";
 import { AgentStep } from "@/types/activity";
 
@@ -61,6 +63,8 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
   const abortRef = useRef<AbortController | null>(null);
   const assistantIdRef = useRef<string | null>(null);
   const loadedConvRef = useRef<string | null>(null);
+  const router = useRouter();
+  const { refreshConversations } = useConversations();
 
   // Load conversation messages when conversationId changes
   useEffect(() => {
@@ -237,6 +241,14 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
             // For now, just show the confirmation message
           }
 
+          // If this was a new conversation, the backend should return the ID
+          if (!conversationId && data.conversationId) {
+            // Update the URL without reloading the page
+            window.history.replaceState(null, "", `/chat/${data.conversationId}`);
+            // Refresh sidebar list
+            refreshConversations();
+          }
+
           setIsStreaming(false);
         } catch (err) {
           if ((err as Error).name !== "AbortError") {
@@ -259,7 +271,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
       fetchLoop();
     },
-    [conversationId]
+    [conversationId, router, refreshConversations]
   );
 
   return {
