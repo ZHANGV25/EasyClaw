@@ -20,7 +20,7 @@ const ScrollTracker = ({ currentAct }: { currentAct: Act }) => {
     ];
 
     return (
-        <div className="absolute left-8 top-1/2 -translate-y-1/2 z-50 hidden md:block mix-blend-difference">
+        <div className="relative">
             <div className="flex flex-col gap-12 relative">
                 {/* Vertical Line */}
                 <div className="absolute left-[7px] top-0 bottom-0 w-[1px] bg-white/20" />
@@ -86,19 +86,20 @@ export default function HeroScrollDemo() {
 
     // Active Dispatch Narrative: The Bubble IS the agent.
 
-    // Bubble Movement: Center -> Left (Maps) -> Right (Web) -> Center (Synthesis) -> Result
+    // Bubble Movement: Center -> Up (Tree Root) -> Center (Synthesis) -> Result
     const bubbleX = useTransform(smoothProgress,
-        [0.2, 0.3, 0.45, 0.55, 0.6],
-        [0, -150, 150, 0, 0] // Mobile might need smaller values, handling via responsive classes/layout
+        [0.2, 0.3, 0.45, 0.55, 0.6, 0.75, 0.8],
+        [0, 0, 0, 0, 0, 250, 250] // Move right only at the end
     );
 
     const bubbleY = useTransform(smoothProgress,
-        [0.2, 0.25, 0.3, 0.45, 0.55, 0.75, 0.8],
-        [0, -100, -100, -50, 0, -200, -300]
+        [0.2, 0.25, 0.3, 0.5, 0.6, 0.75, 0.8],
+        [0, -150, -300, -300, 0, -100, -100] // Move to -100 for final state to make room for response
     );
 
-    const bubbleScale = useTransform(smoothProgress, [0.2, 0.25], [1, 0.6]); // Shrink more to be a "cursor"
-    const bubbleOpacity = useTransform(smoothProgress, [0, 0.75, 0.8], [1, 1, 0]);
+    const bubbleScale = useTransform(smoothProgress, [0, 1], [1, 1]); // Keep scale 1.0 to match result
+    // val: 1 -> 1. Keep visible throughout.
+    const bubbleOpacity = useTransform(smoothProgress, [0, 1], [1, 1]); 
 
     // Status Text Opacity
     const statusOpacity = useTransform(smoothProgress, [0, 0.2], [1, 0]);
@@ -108,34 +109,44 @@ export default function HeroScrollDemo() {
     const fullText = "Find me a dentist in Shadyside that takes Blue Cross and is open next Tuesday after 5pm.";
 
     useEffect(() => {
-        if (currentAct === "REQUEST") {
-            if (typedText.length < fullText.length) {
-                const timeout = setTimeout(() => {
-                    setTypedText(fullText.slice(0, typedText.length + 1));
-                }, 30);
-                return () => clearTimeout(timeout);
-            }
+        // Start typing immediately and continue regardless of scroll
+        if (typedText.length < fullText.length) {
+            const timeout = setTimeout(() => {
+                setTypedText(fullText.slice(0, typedText.length + 1));
+            }, 30);
+            return () => clearTimeout(timeout);
         }
-    }, [typedText, currentAct]);
+    }, [typedText]);
 
-    // ─── ACT II: SWARM (Active Dispatch) ─────────────────────────────
+    // ─── ACT II: SWARM (Active Dispatch - Tree) ─────────────────────────────
 
-    // Agents appear when the bubble "visits" them
-    // Agent 1 (Maps/Scanning) - Left
-    const agent1Opacity = useTransform(smoothProgress, [0.28, 0.32, 0.4], [0, 1, 0]);
-    const agent1Scale = useTransform(smoothProgress, [0.28, 0.32, 0.4], [0.5, 1.2, 0]);
+    // Tree Line Growth
+    const treeLineHeight = useTransform(smoothProgress, [0.25, 0.35], [0, 200]);
+    const treeBranchWidth = useTransform(smoothProgress, [0.35, 0.4], [0, 300]); // Horizontal spread
+    const treeBranchHeight = useTransform(smoothProgress, [0.4, 0.45], [0, 100]); // Vertical drop to nodes
 
-    // Agent 2 (Web/Loading) - Right
-    const agent2Opacity = useTransform(smoothProgress, [0.43, 0.47, 0.55], [0, 1, 0]);
-    const agent2Scale = useTransform(smoothProgress, [0.43, 0.47, 0.55], [0.5, 1.2, 0]);
-
-    // Agent 3 (Data/Synthesis) - Center Re-convergence
-    const agent3Opacity = useTransform(smoothProgress, [0.55, 0.6, 0.75], [0, 1, 0]);
-    const agent3Scale = useTransform(smoothProgress, [0.55, 0.6], [0.8, 1]);
+    // Agent Nodes Opacity/Scale - Staggered Appearance
+    const nodesOpacity = useTransform(smoothProgress, [0.4, 0.45, 0.55, 0.6], [0, 1, 1, 0]); // Fade out as synthesis starts
+    const nodesScale = useTransform(smoothProgress, [0.4, 0.45], [0.8, 1]);
+    const centerNodeScale = useTransform(smoothProgress, [0.4, 0.45], [0.8, 1.1]); // Slightly larger for hierarchy
 
     // ─── ACT III: SYNTHESIS (Convergence) ─────────────────────────────
 
-    // Lines connecting back to center
+    // Synthesis appears as tree fades
+    const synthesisOpacity = useTransform(smoothProgress, [0.55, 0.6, 0.75], [0, 1, 0]);
+    const synthesisScale = useTransform(smoothProgress, [0.55, 0.6], [0.8, 1]);
+
+    // Nodes Travel to Center (Convergence) - Reverse the expansion
+    const nodesX = useTransform(smoothProgress, [0.5, 0.6], [0, 0]); // Handled via layout, but we can animate left/right nodes in
+    // Actually, let's just reverse the x/y of the nodes to center
+    const nodeLeftX = useTransform(smoothProgress, [0.5, 0.6], ["0%", "100%"]); // Move right to center
+    const nodeRightX = useTransform(smoothProgress, [0.5, 0.6], ["0%", "-100%"]); // Move left to center
+    const nodesY = useTransform(smoothProgress, [0.5, 0.6], [0, -100]); // Move up towards synthesis point
+
+    // Lines connecting back to center (Result generation)
+
+    // Lines connecting back to center (Result generation)
+    // We reuse the tree structure implicitly collapsing or guiding the eye down
     const synthesisLines = useTransform(smoothProgress, [0.6, 0.65, 0.7], [0, 1, 0]);
 
     // ─── ACT IV: RESULT (Dark Mode Reveal) ───────────────────────────
@@ -157,22 +168,20 @@ export default function HeroScrollDemo() {
                     />
                 </div>
 
-                {/* Side Scroll Tracker */}
-                <div className="absolute inset-0 pointer-events-none z-50">
-                    <div className="h-full w-full max-w-[1400px] mx-auto relative">
-                        <ScrollTracker currentAct={currentAct} />
-                    </div>
+                {/* Side Scroll Tracker - Fixed to Viewport Left */}
+                <div className="fixed left-6 top-1/2 -translate-y-1/2 z-50 hidden md:block mix-blend-difference pointer-events-none">
+                     <ScrollTracker currentAct={currentAct} />
                 </div>
 
                 {/* ─── ACT I: ACTIVE DISPATCHER BUBBLE ──────────────────────── */}
                 <motion.div
                     style={{ opacity: bubbleOpacity, scale: bubbleScale, x: bubbleX, y: bubbleY }}
-                    className="absolute z-50 w-full max-w-xl px-4 flex flex-col items-center origin-center"
+                    className="absolute z-50 inset-x-0 mx-auto max-w-4xl px-4 flex flex-col items-center pointer-events-none"
                 >
                     {/* ACCURATE iMESSAGE BUBBLE */}
-                    <div className="relative group w-full max-w-lg">
+                    <div className="relative group w-[300px] md:w-[400px]"> 
                         <div
-                            className="relative text-white px-5 py-3 rounded-[20px] rounded-br-[4px] leading-snug text-[17px] font-normal antialiased shadow-2xl backdrop-blur-md"
+                            className="relative text-white px-5 py-3.5 rounded-[22px] rounded-br-[4px] leading-snug text-[17px] font-normal antialiased shadow-2xl backdrop-blur-md"
                             style={{
                                 background: 'linear-gradient(180deg, #38acff 0%, #007AFF 100%)', // Brighter top for realism
                                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
@@ -183,58 +192,164 @@ export default function HeroScrollDemo() {
                             {typedText}
                         </div>
                         {/* Tail - SVG */}
-                        <svg className="absolute -bottom-[0px] -right-[5px] w-[18px] h-[18px]" viewBox="0 0 20 20">
-                            <path d="M0 20 L20 20 C 12 20 5 15 0 0 Z" fill="#007AFF" />
+                        <svg className="absolute bottom-[0px] -right-[5px] w-[20px] h-[20px]" viewBox="0 0 20 20" style={{ transform: 'rotateY(0deg)' }}>
+                             <path d="M0 20 L20 20 C 12 20 5 15 0 0 Z" fill="#007AFF" />
                         </svg>
                     </div>
                 </motion.div>
 
 
-                {/* ─── ACT II: AGENT 1 - MAPS (SCANNING) ────────────────────── */}
-                <motion.div
-                    style={{ opacity: agent1Opacity, scale: agent1Scale, x: -150, y: -50 }}
-                    className="absolute z-20 flex flex-col items-center justify-center pointer-events-none"
-                >
-                    <div className="w-24 h-24 rounded-full border border-white/20 flex items-center justify-center relative">
-                        {/* Radar Scan */}
-                        <div className="absolute inset-0 rounded-full border border-white/40 border-t-transparent animate-[spin_1.5s_linear_infinite]" />
-                        <div className="absolute inset-0 bg-white/5 rounded-full animate-pulse" />
+                {/* ─── ACT II: TREE STRUCTURE & AGENTS ────────────────────── */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <svg className="w-full h-full absolute inset-0 overflow-visible">
+                        <defs>
+                            <linearGradient id="line-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                                <stop offset="50%" stopColor="rgba(255,255,255,0.5)" />
+                                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                            </linearGradient>
+                        </defs>
+                        
+                        {/* Left Branch */}
+                        <motion.path 
+                            d="M 50% 150 Q 50% 250 30% 350" // End higher at 350 (approx 45%)
+                            fill="none"
+                            stroke="rgba(255,255,255,0.2)" 
+                            strokeWidth="2"
+                            style={{ pathLength: treeLineHeight }}
+                        />
+                        
+                         {/* Right Branch */}
+                         <motion.path 
+                            d="M 50% 150 Q 50% 250 70% 350" // End higher at 350
+                            fill="none"
+                            stroke="rgba(255,255,255,0.2)" 
+                            strokeWidth="2"
+                            style={{ pathLength: treeLineHeight }}
+                        />
 
-                        {/* Map Icon / Node */}
-                        <div className="w-2 h-2 bg-[#22c55e] rounded-full shadow-[0_0_15px_#22c55e]" />
-                    </div>
-                    <div className="mt-4 text-[10px] font-mono tracking-[0.2em] text-[#22c55e] uppercase">
-                        Scanning Area
-                    </div>
-                    <div className="text-[9px] font-mono text-white/40 mt-1">Shadyside, North...</div>
-                </motion.div>
+                        {/* Middle Branch */}
+                        <motion.path 
+                            d="M 50% 150 L 50% 350" // End higher at 350
+                            fill="none"
+                            stroke="rgba(255,255,255,0.2)" 
+                            strokeWidth="2"
+                            style={{ pathLength: treeLineHeight }}
+                        />
+                    </svg>
 
+                    {/* Agent Nodes Container */}
+                    <div className="absolute inset-0 w-full h-full pointer-events-none">
+                        {/* Node 1: Scanning Web (Left) */}
+                        <motion.div 
+                            className="absolute left-[30%] top-[45%] -translate-x-1/2 flex flex-col items-center gap-2"
+                            style={{ opacity: nodesOpacity, scale: nodesScale, x: nodeLeftX, y: nodesY }}
+                        >
+                             {/* Agent Header */}
+                             <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                <span className="text-[10px] font-mono text-white/80 uppercase tracking-wider">Agent 01</span>
+                            </div>
 
-                {/* ─── ACT II: AGENT 2 - WEB (LOADING) ──────────────────────── */}
-                <motion.div
-                    style={{ opacity: agent2Opacity, scale: agent2Scale, x: 150, y: 0 }}
-                    className="absolute z-20 flex flex-col items-center justify-center pointer-events-none"
-                >
-                    <div className="w-32 h-auto bg-[#0a0a0a] border border-white/20 rounded-md p-3 relative shadow-xl">
-                        {/* Skeleton UI */}
-                        <div className="w-full h-1 bg-white/20 mb-2 rounded-full overflow-hidden">
-                            <div className="w-1/2 h-full bg-[#3b82f6] animate-[shimmer_1s_infinite_linear]" />
-                        </div>
-                        <div className="space-y-1">
-                            <div className="w-3/4 h-1 bg-white/10 rounded-full" />
-                            <div className="w-1/2 h-1 bg-white/10 rounded-full" />
-                        </div>
+                            <div className="w-40 h-24 bg-black/80 border border-white/10 rounded-lg overflow-hidden relative backdrop-blur-sm shadow-2xl">
+                                <div className="absolute inset-x-0 top-0 h-6 bg-white/5 border-b border-white/5 flex items-center px-2 z-10 gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-red-500/50" />
+                                    <div className="w-2 h-2 rounded-full bg-yellow-500/50" />
+                                    <div className="w-2 h-2 rounded-full bg-green-500/50" />
+                                </div>
+                                {/* Added padding-top to prevent clipping into the header bar */}
+                                <div className="p-3 pt-10 space-y-2 opacity-80">
+                                    {/* Animated Scrolling Lines */}
+                                    <motion.div 
+                                        animate={{ y: [-10, -50] }} 
+                                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                        className="space-y-2"
+                                    >
+                                        <div className="h-2 w-[80%] bg-blue-500/20 rounded-sm" />
+                                        <div className="h-2 w-[60%] bg-white/10 rounded-sm" />
+                                        <div className="h-2 w-[90%] bg-white/10 rounded-sm" />
+                                        <div className="h-2 w-[40%] bg-blue-500/20 rounded-sm" />
+                                        <div className="h-2 w-[70%] bg-white/10 rounded-sm" />
+                                        <div className="h-2 w-[50%] bg-white/10 rounded-sm" />
+                                    </motion.div>
+                                    {/* Vignette Overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
+                                </div>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-widest text-blue-400 uppercase bg-blue-500/10 px-2 py-1 rounded">Scanning Web</span>
+                        </motion.div>
+
+                        {/* Node 2: Reviews (Center) */}
+                        <motion.div 
+                            className="absolute left-[50%] top-[45%] -translate-x-1/2 flex flex-col items-center gap-2"
+                            style={{ opacity: nodesOpacity, scale: centerNodeScale, y: nodesY }}
+                        >
+                             {/* Agent Header */}
+                             <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                                <span className="text-[10px] font-mono text-white/80 uppercase tracking-wider">Agent 02</span>
+                            </div>
+
+                            <div className="w-32 h-24 bg-black/80 border border-white/10 rounded-lg flex flex-col items-center justify-center relative backdrop-blur-sm shadow-2xl">
+                                <div className="text-3xl font-bold text-white mb-1">4.9</div>
+                                <div className="flex gap-1">
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <motion.svg 
+                                            key={i}
+                                            initial={{ opacity: 0, scale: 0 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: 0.5 + (i * 0.1) }}
+                                            className="w-3 h-3 text-yellow-500 fill-current" 
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                        </motion.svg>
+                                    ))}
+                                </div>
+                                <div className="text-[9px] text-white/40 mt-2 font-mono">128 REVIEWS</div>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-widest text-yellow-500 uppercase bg-yellow-500/10 px-2 py-1 rounded">Analysis</span>
+                        </motion.div>
+
+                        {/* Node 3: Schedule (Right) */}
+                        <motion.div 
+                            className="absolute left-[70%] top-[45%] -translate-x-1/2 flex flex-col items-center gap-2"
+                            style={{ opacity: nodesOpacity, scale: nodesScale, x: nodeRightX, y: nodesY }}
+                        >
+                             {/* Agent Header */}
+                             <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-[10px] font-mono text-white/80 uppercase tracking-wider">Agent 03</span>
+                            </div>
+
+                             <div className="w-32 h-24 bg-black/80 border border-white/10 rounded-lg p-3 relative backdrop-blur-sm shadow-2xl">
+                                <div className="grid grid-cols-4 gap-1 h-full">
+                                    {Array.from({ length: 12 }).map((_, i) => (
+                                        <motion.div
+                                            key={i}
+                                            initial={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+                                            animate={{ 
+                                                backgroundColor: [
+                                                    "rgba(255,255,255,0.1)", 
+                                                    i === 5 || i === 9 ? "#22c55e" : "rgba(255,255,255,0.1)"
+                                                ] 
+                                            }}
+                                            transition={{ delay: 1 + (i * 0.05), duration: 0.5 }}
+                                            className="rounded-[1px]"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-widest text-green-400 uppercase bg-green-500/10 px-2 py-1 rounded">Schedule</span>
+                        </motion.div>
                     </div>
-                    <div className="mt-4 text-[10px] font-mono tracking-[0.2em] text-[#3b82f6] uppercase">
-                        Reading Insurance
-                    </div>
-                    <div className="text-[9px] font-mono text-white/40 mt-1">Blue Cross Policy...</div>
-                </motion.div>
+
+                </div>
 
 
                 {/* ─── ACT III: DATA SYNTHESIS ──────────────────────────────── */}
                 <motion.div
-                    style={{ opacity: agent3Opacity, scale: agent3Scale }}
+                    style={{ opacity: synthesisOpacity, scale: synthesisScale }}
                     className="absolute z-10 flex flex-col items-center justify-center"
                 >
                     {/* Connecting Lines */}
@@ -259,59 +374,28 @@ export default function HeroScrollDemo() {
                     </div>
                 </motion.div>
 
-                {/* ─── ACT IV: RESULT ───────────────────────────────────────── */}
+                {/* ─── ACT IV: RESULT (Done Bubble) ─────────────────────────── */}
                 <motion.div
                     style={{ opacity: act4Opacity, scale: act4Scale, y: act4Y }}
-                    className="absolute z-30 w-full max-w-lg px-6"
+                    className="absolute inset-0 mx-auto max-w-4xl px-4 flex flex-col items-start justify-center pointer-events-none z-40"
                 >
-                    {/* Result Card - Dark Premium Swiss Style */}
-                    <div className="bg-[#050505] rounded-sm border border-white/10 shadow-[0_0_50px_rgba(255,255,255,0.05)] p-10 md:p-12 relative overflow-hidden group">
-
-                        {/* Corner Pluses */}
-                        <div className="absolute top-3 left-3 w-2 h-2 border-l border-t border-white/30" />
-                        <div className="absolute top-3 right-3 w-2 h-2 border-r border-t border-white/30" />
-                        <div className="absolute bottom-3 left-3 w-2 h-2 border-l border-b border-white/30" />
-                        <div className="absolute bottom-3 right-3 w-2 h-2 border-r border-b border-white/30" />
-
-                        {/* Top Label */}
-                        <div className="flex justify-between items-start mb-10 relative z-10 border-b border-white/5 pb-6">
-                            <div className="uppercase tracking-[0.2em] text-[9px] font-mono text-white/40">
-                                CONFIRMED APPOINTMENT
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] shadow-[0_0_10px_#22c55e]" />
-                                <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest">Live</span>
-                            </div>
+                     {/* Gray Response Bubble - MATCHING BLUE BUBBLE EXACTLY */}
+                     <div className="relative group w-[300px] md:w-[400px] mt-[20px]">
+                        <div
+                            className="relative text-white px-5 py-3.5 rounded-[22px] rounded-bl-[4px] leading-snug text-[17px] font-normal antialiased shadow-2xl backdrop-blur-md"
+                            style={{
+                                background: '#3a3a3c', // iOS Gray
+                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                                letterSpacing: '-0.012em',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0px rgba(255, 255, 255, 0.05)'
+                            }}
+                        >
+                            Done. I scheduled you for <span className="font-semibold text-white">Dr. Elena Rosas</span> in Shadyside for <span className="text-green-300">Tuesday at 5:30 PM</span>.
                         </div>
-
-                        {/* Main Content */}
-                        <h1 className="text-4xl md:text-5xl font-serif text-white mb-3 relative z-10 leading-[0.9]">
-                            Dr. Elena Rosas
-                        </h1>
-                        <p className="text-lg text-white/40 mb-10 font-sans font-light relative z-10">
-                            Shadyside Dental Center
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-y-8 gap-x-8 mb-12 relative z-10">
-                            <div className="border-l border-white/10 pl-6">
-                                <div className="text-[9px] uppercase tracking-[0.2em] text-white/30 mb-2 font-mono">Date & Time</div>
-                                <div className="text-white text-xl font-serif">Tue, 5:30 PM</div>
-                            </div>
-                            <div className="border-l border-white/10 pl-6">
-                                <div className="text-[9px] uppercase tracking-[0.2em] text-white/30 mb-2 font-mono">Insurance</div>
-                                <div className="text-white text-xl font-serif">Blue Cross</div>
-                            </div>
-                        </div>
-
-                        {/* Action */}
-                        <div className="flex flex-col gap-4 relative z-10">
-                            <Link
-                                href="/sign-up"
-                                className="w-full bg-white hover:bg-neutral-200 text-black text-center py-4 text-[10px] font-bold tracking-[0.25em] transition-all uppercase rounded-sm flex items-center justify-center gap-2 group-hover:tracking-[0.3em]"
-                            >
-                                View Details <span className="text-lg leading-none">→</span>
-                            </Link>
-                        </div>
+                        {/* Tail - SVG */}
+                        <svg className="absolute bottom-[0px] -left-[5px] w-[20px] h-[20px]" viewBox="0 0 20 20" style={{ transform: 'rotateY(180deg)' }}>
+                            <path d="M0 20 L20 20 C 12 20 5 15 0 0 Z" fill="#3a3a3c" />
+                        </svg>
                     </div>
                 </motion.div>
             </div>
