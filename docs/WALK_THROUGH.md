@@ -15,9 +15,12 @@ graph TB
             API["/api/* — API Routes (future)"]
         end
         subgraph "packages/"
-            DB["db — Drizzle ORM Schema"]
             CFG["config — Types & Constants"]
             UI["ui — Shared Components (stub)"]
+        end
+        subgraph "backend/"
+            SCHEMA["SQL Schema"]
+            ROUTES["API Routes"]
         end
     end
 
@@ -30,8 +33,8 @@ graph TB
 
     LP --> CH
     CH --> API
-    API --> DB
-    DB --> PG
+    API --> ROUTES
+    ROUTES --> PG
     LP --> CL
     API --> AWS
 ```
@@ -46,13 +49,12 @@ EasyClaw/
 │       ├── page.tsx             # Landing page (hero + features)
 │       ├── chat/page.tsx        # Chat UI (Vercel-style)
 │       └── globals.css          # Design system (custom properties)
+├── backend/                     # Backend API
+│   └── src/
+│       └── util/schema.sql      # PostgreSQL schema (raw SQL)
 ├── packages/
-│   ├── db/                      # Database layer
-│   │   ├── src/schema.ts        # 4 tables: users, containers, usage_logs, api_keys
-│   │   ├── src/index.ts         # DB client export
-│   │   └── drizzle.config.ts    # Migration config
 │   └── config/
-│       └── src/index.ts         # Shared types (ChatMessage, UserProfile, ContainerStatus)
+│       └── src/index.ts         # Shared types (ChatMessage, UserProfile)
 ├── .env.example                 # All env vars documented
 ├── .gitignore
 ├── package.json                 # Root (turbo + prettier)
@@ -65,10 +67,12 @@ EasyClaw/
 
 | Table | Key Columns | Purpose |
 |-------|-------------|---------|
-| `users` | `clerk_id`, `email`, `credits_balance` | User accounts, $1.00 free tier |
-| `containers` | `user_id`, `status`, `task_arn` | One container per user, lifecycle tracking |
-| `usage_logs` | `user_id`, `tokens_in/out`, `cost_usd`, `model` | Per-message cost attribution |
-| `api_keys` | `user_id`, `key_hash` | Future: external API access |
+| `users` | `id`, `email`, `credits_balance` | User accounts with Clerk ID |
+| `conversations` | `user_id`, `title`, `state` | Conversation context and history |
+| `messages` | `conversation_id`, `role`, `content` | Individual chat messages |
+| `jobs` | `user_id`, `status`, `type`, `worker_id` | Job queue for worker pool |
+| `state_snapshots` | `job_id`, `s3_key`, `version` | User filesystem versions in S3 |
+| `transactions` | `user_id`, `amount`, `type` | Credit purchases and usage tracking |
 
 ---
 

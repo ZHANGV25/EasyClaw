@@ -21,12 +21,19 @@ Chat Interface (web app + mobile-friendly)
     ↓
 Messaging Bridge (WhatsApp / Telegram / SMS)
     ↓
-Container Orchestration Layer
+Backend API (creates job in DB)
     ↓
-User's Isolated OpenClaw Container (1 per user)
+PostgreSQL jobs table (polling queue)
+    ↓
+Worker Pool (ECS Fargate — scales with queue depth)
+    ├─ Worker 1 ─→ Polls for jobs ─→ Claims job
+    ├─ Worker 2 ─→ Fetches user data from SQL & S3
+    └─ Worker N ─→ Executes with OpenClaw ─→ Returns result
     ↓
 AI Provider (Anthropic / OpenAI / Gemini — abstracted)
 ```
+
+**Key Difference:** NOT one container per user. Instead, a **shared worker pool** that scales dynamically. Each worker can handle any job for any user by fetching their context from the database and S3.
 
 ### Infrastructure Decisions
 - **Hosting:** AWS (ECS/Fargate for containers)
@@ -43,24 +50,27 @@ AI Provider (Anthropic / OpenAI / Gemini — abstracted)
 - Sign up / log in (email + Google OAuth)
 - Onboarding flow: name, timezone, "what do you need help with?"
 
-### 3b. Container Provisioning
-- On signup → spin up an isolated OpenClaw container for the user
-- Pre-configured with SOUL.md, USER.md, AGENTS.md (populated from onboarding)
-- Auto-manages API keys (user doesn't see them)
-- Health monitoring — restart crashed containers
+### 3b. Worker Pool Management
+- On signup → user record created in database (no dedicated container)
+- Workers are generic and shared across all users
+- User context (preferences, history) stored in PostgreSQL
+- User filesystem (if any) stored in S3 (state_snapshots table)
+- Auto-scaling: workers scale with job queue depth (min 1, max 50)
+- Health monitoring — restart crashed workers automatically (ECS)
 
 ### 3c. Chat Interface
 - Web-based chat UI (Next.js)
 - Mobile responsive (this IS the mobile app for v1)
-- Real-time message streaming
-- File/image upload support
-- Message history (persisted)
+- Real-time message streaming (via WebSocket or SSE)
+- File/image upload support (uploaded to S3, referenced in job payload)
+- Message history (persisted in `messages` table)
+- Job status indicator (pending/running/completed)
 
 ### 3d. One Messaging Channel
 - Pick ONE: Telegram or WhatsApp
 - Recommendation: **Telegram** (easier API, free, no business verification)
-- User connects their Telegram → messages route to their container
-- Two-way: they message the bot, bot replies
+- User connects their Telegram → messages create jobs in the queue
+- Two-way: they message the bot, worker processes job, bot replies
 
 ### 3e. Core Assistant Capabilities (comes free with OpenClaw)
 - Reminders and scheduled tasks
@@ -74,18 +84,20 @@ AI Provider (Anthropic / OpenAI / Gemini — abstracted)
 - **Usage-based pricing** (Vercel model):
   - Credits system — user buys/tops up credits
   - Each AI message costs X credits based on model used
-  - Markup on actual API + compute costs (aim for 30-50% margin)
+  - Markup on actual API costs (aim for 30-50% margin)
   - Free tier: small starting credit balance to hook users
   - Clear usage dashboard so no bill shock
   - Auto-pause at $0 balance (no surprise charges)
-- Token usage tracking per container
-- Compute time tracking (container uptime)
+- Token usage tracking per job (logged in `transactions` table)
+- Cost calculated from AI API usage (tokens in/out, model type)
+- Compute cost abstracted (amortized across all users via worker pool)
 
 ### 3g. Admin Dashboard
-- User management
-- Container health monitoring
-- Usage metrics per user
-- Cost tracking (your API spend vs revenue)
+- User management (active users, credit balances)
+- Worker pool health monitoring (active workers, queue depth, job completion rate)
+- Usage metrics per user (messages sent, tokens used, credits spent)
+- Cost tracking (API spend vs revenue, per-user profitability)
+- Job queue stats (pending, running, completed, failed)
 
 ---
 
@@ -103,35 +115,37 @@ AI Provider (Anthropic / OpenAI / Gemini — abstracted)
 | Monitoring | Uptime + container health checks | Basic for MVP |
 
 ### AWS Strategy
-- **ECS Fargate** for container management — no servers to manage, pay per use
-- **Sleep/wake containers** to save costs — spin down after 30min idle, wake on message
-- **ECR** for container images
-- **RDS** (PostgreSQL) for user data
-- **S3** for file storage per user
+- **ECS Fargate** for worker pool — no servers to manage, pay per use
+- **Auto-scaling** based on job queue depth (scale up when queue grows, scale down when idle)
+- **Min 1 worker** always running for fast response (no cold starts)
+- **Max 50 workers** (cost cap, can increase later)
+- **ECR** for worker container images
+- **RDS** (PostgreSQL) for user data, jobs queue, usage logs
+- **S3** for user filesystems (state_snapshots)
 
 ---
 
 ## 5. Development Phases
 
 ### Phase 1 — Foundation (Weeks 1-2)
-- [ ] Set up monorepo (frontend + backend + infra)
-- [ ] Landing page with auth
-- [ ] Basic database schema (users, subscriptions, containers)
-- [ ] Stripe integration (subscription creation)
-- [ ] Container provisioning proof-of-concept (manually spin up OpenClaw in a container)
+- [ ] Set up monorepo (frontend + backend + worker)
+- [ ] Landing page with auth (Clerk)
+- [ ] Database schema (users, conversations, messages, jobs, state_snapshots, transactions)
+- [ ] Stripe integration (credits purchase)
+- [ ] Worker proof-of-concept (poll jobs table, claim job, echo result)
 
 ### Phase 2 — Core Product (Weeks 3-4)
-- [ ] Chat UI connected to user's OpenClaw container
-- [ ] Automated container provisioning on signup
-- [ ] Onboarding flow that configures the assistant
-- [ ] Message history persistence
-- [ ] Usage tracking and rate limiting
+- [ ] Chat UI that creates jobs and polls for results
+- [ ] Worker job execution (fetch context from DB/S3, run OpenClaw agent)
+- [ ] Onboarding flow that sets user preferences in DB
+- [ ] Message history persistence (messages table)
+- [ ] Usage tracking (transactions table) and rate limiting (check credits_balance)
 
 ### Phase 3 — Messaging + Polish (Weeks 5-6)
-- [ ] Telegram bot integration
-- [ ] Container health monitoring + auto-restart
-- [ ] Admin dashboard (basic)
-- [ ] Error handling, edge cases, loading states
+- [ ] Telegram bot integration (creates jobs on message)
+- [ ] Worker pool health monitoring (CloudWatch)
+- [ ] Admin dashboard (user stats, queue depth, worker metrics)
+- [ ] Error handling, job retries, edge cases
 - [ ] Mobile responsiveness polish
 
 ### Phase 4 — Launch Prep (Week 7-8)
@@ -154,9 +168,11 @@ AI Provider (Anthropic / OpenAI / Gemini — abstracted)
 
 ## 7. Risks
 
-- **Cost management** — free tier abuse, need hard caps and fraud detection
-- **Container cold starts** — sleeping containers to save money vs wake-up latency
-- **Scaling** — 1 container per user gets expensive fast; need aggressive sleep/wake
+- **Cost management** — free tier abuse, need hard caps (credit limits) and fraud detection
+- **Worker scaling** — queue can grow faster than we can scale workers (mitigate with max queue depth alerting)
+- **Job timeouts** — long-running jobs can tie up workers (mitigate with 10-minute timeout)
+- **Database bottleneck** — all workers polling same jobs table (mitigate with indexed queries, connection pooling)
+- **S3 costs** — frequent filesystem uploads can get expensive (mitigate with delta sync later)
 - **Competition** — OpenAI, Google, etc. could ship this themselves
 - **Free tier economics** — need to nail the free balance so users convert but you don't bleed money
 

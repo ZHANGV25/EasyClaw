@@ -7,16 +7,22 @@
 4.  **Fail Gracefully:** If the AI hallucinates, catch the error. Don't crash the container.
 
 ## 2. Infrastructure
-*   **Monolith MVP:** Single container per user. Cold start fits the "Assistant" vibe.
-*   **Scale (Phase 2):** "Smart Switch" Architecture.
-    *   **Dispatcher (Tier 1):** Fast LLM (Haiku) handles routing.
-    *   **Queue (Tier 1.5):** Postgres `jobs` table.
-    *   **Workers (Tier 2):** Container pool.
+*   **Worker Pool Architecture:** Scalable pool of generic workers (NOT one per user).
+    *   **Frontend/API:** Creates job rows in `jobs` table (status='PENDING').
+    *   **Queue:** Postgres `jobs` table with indexed polling.
+    *   **Workers (ECS Fargate):** Pool scales with queue depth (min 1, max 50).
+    *   **Each worker polls:** `SELECT * FROM jobs WHERE status='PENDING' LIMIT 1 FOR UPDATE SKIP LOCKED`.
+    *   **Worker claims job:** Sets status='RUNNING', worker_id=ECS_TASK_ID, locked_at=NOW().
+    *   **Auto-scaling:** Add workers when `pending_jobs > workers * 2`, remove when idle.
 
 ## 3. Data Flow
-1.  **Ingress:** Webhook -> `messages` table.
-2.  **Dispatch:** LLM decides -> `jobs` table.
-3.  **Execution:** Container claims job -> Mounts S3 -> Runs -> Sleeps.
+1.  **Ingress:** User message -> API -> INSERT INTO `messages` table.
+2.  **Job Creation:** API creates job -> INSERT INTO `jobs` (status='PENDING').
+3.  **Job Claim:** Worker polls, claims job atomically (FOR UPDATE SKIP LOCKED).
+4.  **Context Load:** Worker fetches user data from SQL, filesystem from S3.
+5.  **Execution:** Worker runs task (browser automation, AI agent, etc.).
+6.  **Completion:** Worker updates job (status='COMPLETED'), logs usage to `transactions`.
+7.  **Loop:** Worker returns to polling for next job.
 
 ## 4. Payment Security (The Vault)
 *   **Strategy A (MVP):** Human Handoff. Agent builds cart, sends link. Zero liability.

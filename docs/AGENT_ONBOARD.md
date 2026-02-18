@@ -25,12 +25,12 @@ Read all files in this order:
 **EasyClaw** is a consumer SaaS that wraps OpenClaw (open-source AI assistant framework) into a managed, containerized experience. Non-technical people sign up, get a private AI personal assistant, and talk to it via web chat and Telegram. No servers, no API keys, no terminal.
 
 **Key decisions already made:**
-- AWS (ECS/Fargate) for container orchestration
+- AWS (ECS/Fargate) for worker pool orchestration
 - Next.js + Tailwind frontend
 - Telegram as first messaging channel
 - Stripe usage-based billing (Vercel model — free tier + pay for what you use)
-- PostgreSQL for data
-- One isolated OpenClaw container per user
+- PostgreSQL for data (raw SQL, no ORM)
+- Scalable worker pool that handles jobs for all users (NOT one container per user)
 
 ## Step 3: Project Structure
 
@@ -39,19 +39,22 @@ When creating files, follow this monorepo structure:
 ```
 EasyClaw/
 ├── apps/
-│   ├── web/                 # Next.js frontend (landing, auth, chat, dashboard, billing)
-│   └── api/                 # Backend API (container mgmt, auth, billing, Telegram webhook)
+│   └── web/                 # Next.js frontend (landing, auth, chat, dashboard, billing)
+├── backend/                 # Node.js backend API (job creation, auth, billing, Telegram webhook)
+│   └── src/
+│       └── util/schema.sql  # PostgreSQL schema (raw SQL)
+├── worker/                  # Job worker container (polls queue, executes tasks)
+│   ├── src/                 # Worker logic (polling, OpenClaw integration)
+│   └── Dockerfile           # Worker container image
 ├── packages/
 │   ├── ui/                  # Shared UI components
-│   ├── db/                  # Database schema, migrations, queries (Drizzle or Prisma)
 │   └── config/              # Shared config, types, constants
 ├── infra/
 │   ├── terraform/           # AWS infrastructure as code
-│   ├── docker/              # OpenClaw container image + configs
 │   └── scripts/             # Deployment, provisioning scripts
-├── docs/                    # Product docs (existing files move here eventually)
+├── docs/                    # Product docs, architecture, strategy
 ├── .env.example             # Environment variable template
-├── turbo.json               # Turborepo config
+├── turbo.json               # Turborepo config (if using)
 ├── package.json             # Root package.json
 └── README.md
 ```
@@ -67,9 +70,9 @@ EasyClaw/
 
 ## Step 5: Critical Design Constraints
 
-1. **Multi-tenancy isolation.** Every database query, every API call, every container operation MUST be scoped to a user. Never leak data between users.
-2. **Cost tracking at every layer.** Every AI API call must be metered and attributed to a user. This is how we bill.
-3. **Container lifecycle.** Containers sleep after 30min idle, wake on message. Handle: creating, running, sleeping, waking, crashed, deleted.
+1. **Multi-tenancy isolation.** Every database query MUST have `WHERE user_id = ?`. Workers handle multiple users — never leak data between them.
+2. **Cost tracking at every layer.** Every AI API call must be metered and logged to the `transactions` table. This is how we bill.
+3. **Worker pool architecture.** Workers poll a job queue, claim jobs atomically, execute tasks for any user, then return to polling. Workers scale with queue depth.
 4. **Free tier caps.** Free users get a starting credit balance. At $0, assistant pauses. No surprise bills ever.
 5. **The user never sees "OpenClaw."** This is EasyClaw. They have an assistant, not a framework. No technical jargon in the UI.
 
@@ -78,25 +81,25 @@ EasyClaw/
 Follow this sequence. Don't skip ahead.
 
 ### Phase 1 — Foundation
-1. Scaffold the monorepo (Turborepo + pnpm)
+1. Scaffold the monorepo (backend + frontend + worker)
 2. Set up Next.js app in `apps/web/` with Tailwind
-3. Add auth (Clerk or Supabase Auth — pick whichever is faster)
+3. Add auth (Clerk)
 4. Landing page — clean, simple, explains the product, sign-up CTA
-5. Database schema: users, credits, containers, usage_logs
+5. Database schema: users, conversations, messages, jobs, state_snapshots, transactions (raw SQL in `backend/src/util/schema.sql`)
 6. Stripe integration — create customer on signup, credit purchase flow
 
 ### Phase 2 — Core Product
 7. Chat UI — streaming messages, mobile responsive, message history
-8. Backend API — proxy messages between web UI and user's OpenClaw container
-9. Container provisioning — API to spin up/down ECS Fargate tasks per user
-10. Onboarding flow — name, timezone, what they need help with → populates OpenClaw config files (SOUL.md, USER.md)
-11. Usage tracking — count tokens per message, deduct credits
+8. Backend API — creates jobs in the `jobs` table when user sends a message
+9. Worker implementation — polls job queue, claims jobs atomically (FOR UPDATE SKIP LOCKED), fetches user context from DB/S3, executes OpenClaw tasks
+10. Onboarding flow — name, timezone, preferences → stored in DB `users.meta` field
+11. Usage tracking — log tokens to `transactions` table, deduct from `credits_balance`
 
 ### Phase 3 — Messaging + Polish
-12. Telegram bot — webhook receives messages, routes to user's container, sends replies back
-13. Container health monitoring — detect crashes, auto-restart
-14. Admin dashboard — user list, container status, revenue, costs
-15. Error handling everywhere — container down, credits exhausted, API failures
+12. Telegram bot — webhook receives messages, creates jobs in queue, worker executes, bot sends replies
+13. Worker pool health monitoring — CloudWatch metrics, auto-scaling based on queue depth
+14. Admin dashboard — user list, job queue stats, worker metrics, revenue, costs
+15. Error handling everywhere — job failures, credits exhausted, API failures
 
 ## Step 7: After Each Feature
 

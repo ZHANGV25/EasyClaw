@@ -1,4 +1,4 @@
-# Data Management & Security Plan
+t# Data Management & Security Plan
 
 This document outlines the source of truth for all data in EasyClaw. It is designed to be "agent-readable" so future agents know exactly where things go.
 

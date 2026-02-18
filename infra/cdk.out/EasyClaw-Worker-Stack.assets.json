@@ -1,0 +1,37 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "28b2ba93e9a6da445c63d160a7be3621b3d5b4d145c1de26b2e6db531c66872d": {
+      "displayName": "EasyClaw-Worker-Stack Template",
+      "source": {
+        "path": "EasyClaw-Worker-Stack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "008524399874-us-east-1-ce6a3be2": {
+          "bucketName": "cdk-hnb659fds-assets-008524399874-us-east-1",
+          "objectKey": "28b2ba93e9a6da445c63d160a7be3621b3d5b4d145c1de26b2e6db531c66872d.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::008524399874:role/cdk-hnb659fds-file-publishing-role-008524399874-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {
+    "ac7c83b4b8f783d2f8ca889cf847b2e8229a439c03d04e2ce1480e78acb25f29": {
+      "displayName": "WorkerTaskDef/worker/AssetImage",
+      "source": {
+        "directory": "asset.ac7c83b4b8f783d2f8ca889cf847b2e8229a439c03d04e2ce1480e78acb25f29",
+        "dockerFile": "Dockerfile"
+      },
+      "destinations": {
+        "008524399874-us-east-1-276d6bad": {
+          "repositoryName": "cdk-hnb659fds-container-assets-008524399874-us-east-1",
+          "imageTag": "ac7c83b4b8f783d2f8ca889cf847b2e8229a439c03d04e2ce1480e78acb25f29",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::008524399874:role/cdk-hnb659fds-image-publishing-role-008524399874-us-east-1"
+        }
+      }
+    }
+  }
+}

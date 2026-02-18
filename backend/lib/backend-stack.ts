@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
-import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
@@ -10,8 +9,14 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 
+export interface BackendStackProps extends cdk.StackProps {
+  databaseUrl?: string;
+}
+
 export class BackendStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  public readonly api: apigateway.RestApi;
+
+  constructor(scope: Construct, id: string, props?: BackendStackProps) {
     super(scope, id, props);
 
     // 1. VPC
@@ -54,14 +59,7 @@ export class BackendStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // 4. ECS Cluster (Worker Pool Infra)
-    const cluster = new ecs.Cluster(this, 'WorkerCluster', {
-      vpc,
-      clusterName: 'EasyClawWorkerPool',
-      containerInsights: true,
-    });
-
-    // 5. Lambdas
+    // 4. Lambdas (ECS cluster for workers is in WorkerStack)
     const lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSecurityGroup', {
       vpc,
       description: 'Allow Lambda to access RDS',
@@ -82,6 +80,7 @@ export class BackendStack extends cdk.Stack {
       },
       bundling: {
         externalModules: ['pg-native'],
+        forceDockerBundling: false,
       },
       memorySize: 512,
       timeout: cdk.Duration.seconds(300),
@@ -173,16 +172,62 @@ export class BackendStack extends cdk.Stack {
     db.secret?.grantRead(conversationsLambda);
     db.secret?.grantWrite(conversationsLambda); // Needed for INSERT/UPDATE/DELETE
 
+    // Job Queue API Lambdas (simpler, for worker pool system)
+    const jobLambdaConfig: nodejs.NodejsFunctionProps = {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 512,
+      environment: {
+        DATABASE_URL: props?.databaseUrl || '',
+        NODE_ENV: 'production',
+      },
+      bundling: {
+        forceDockerBundling: false,
+      },
+    };
+
+    const createJobFn = new nodejs.NodejsFunction(this, 'CreateJobFunction', {
+      ...jobLambdaConfig,
+      functionName: 'easyclaw-create-job',
+      entry: path.join(__dirname, '../src/handlers/createJob.ts'),
+      handler: 'handler',
+      description: 'Create a new job in the queue',
+    });
+
+    const getJobFn = new nodejs.NodejsFunction(this, 'GetJobFunction', {
+      ...jobLambdaConfig,
+      functionName: 'easyclaw-get-job',
+      entry: path.join(__dirname, '../src/handlers/getJob.ts'),
+      handler: 'handler',
+      description: 'Get job status by ID',
+    });
+
+    const listJobsFn = new nodejs.NodejsFunction(this, 'ListJobsFunction', {
+      ...jobLambdaConfig,
+      functionName: 'easyclaw-list-jobs',
+      entry: path.join(__dirname, '../src/handlers/listJobs.ts'),
+      handler: 'handler',
+      description: 'List user jobs',
+    });
+
     // 6. API Gateway
-    const api = new apigateway.RestApi(this, 'EasyClawApi', {
+    this.api = new apigateway.RestApi(this, 'EasyClawApi', {
       restApiName: 'EasyClaw Service',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: [
+          'Content-Type',
+          'X-Amz-Date',
+          'Authorization',
+          'X-Api-Key',
+          'X-Amz-Security-Token',
+          'X-User-Id',
+        ],
       },
     });
 
-    const apiRoot = api.root.addResource('api');
+    const apiRoot = this.api.root.addResource('api');
 
     // POST /api/chat
     const chatResource = apiRoot.addResource('chat');
@@ -230,10 +275,57 @@ export class BackendStack extends cdk.Stack {
     const stateUploadResource = internalState.addResource('upload');
     stateUploadResource.addMethod('POST', new apigateway.LambdaIntegration(stateUploadLambda));
 
+    // Job Queue API (/jobs endpoints for worker pool)
+    const jobsResource = this.api.root.addResource('jobs');
+
+    // POST /jobs - Create job
+    jobsResource.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(createJobFn, { proxy: true }),
+      { apiKeyRequired: false } // TODO: Add Clerk authorizer
+    );
+
+    // GET /jobs - List jobs
+    jobsResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(listJobsFn, { proxy: true }),
+      { apiKeyRequired: false }
+    );
+
+    // /jobs/{jobId} resource
+    const jobResource = jobsResource.addResource('{jobId}');
+
+    // GET /jobs/{jobId} - Get job status
+    jobResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getJobFn, { proxy: true }),
+      { apiKeyRequired: false }
+    );
+
     // 7. Outputs
-    new cdk.CfnOutput(this, 'ApiUrl', { value: api.url });
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value: this.api.url,
+      description: 'API Gateway URL',
+      exportName: 'EasyClawApiUrl',
+    });
+    new cdk.CfnOutput(this, 'ApiId', {
+      value: this.api.restApiId,
+      description: 'API Gateway ID',
+    });
     new cdk.CfnOutput(this, 'DbSetupFunctionName', { value: dbSetupLambda.functionName });
     new cdk.CfnOutput(this, 'UserDataBucketName', { value: userDataBucket.bucketName });
     new cdk.CfnOutput(this, 'StateBucketName', { value: stateSnapshotBucket.bucketName });
+    new cdk.CfnOutput(this, 'CreateJobFunctionArn', {
+      value: createJobFn.functionArn,
+      description: 'Create Job Lambda ARN',
+    });
+    new cdk.CfnOutput(this, 'GetJobFunctionArn', {
+      value: getJobFn.functionArn,
+      description: 'Get Job Lambda ARN',
+    });
+    new cdk.CfnOutput(this, 'ListJobsFunctionArn', {
+      value: listJobsFn.functionArn,
+      description: 'List Jobs Lambda ARN',
+    });
   }
 }

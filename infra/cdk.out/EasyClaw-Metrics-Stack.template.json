@@ -1,0 +1,195 @@
+{
+ "Description": "EasyClaw Metrics Publisher Lambda",
+ "Resources": {
+  "MetricsPublisherServiceRole0D59C09D": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EasyClaw-Metrics-Stack/MetricsPublisher/ServiceRole/Resource"
+   }
+  },
+  "MetricsPublisherServiceRoleDefaultPolicy84E4AABF": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "cloudwatch:PutMetricData",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "MetricsPublisherServiceRoleDefaultPolicy84E4AABF",
+    "Roles": [
+     {
+      "Ref": "MetricsPublisherServiceRole0D59C09D"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EasyClaw-Metrics-Stack/MetricsPublisher/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "MetricsPublisher6BE7482F": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-008524399874-us-east-1",
+     "S3Key": "218c5edf0ace01f88bedbf041abda7e8f6660c5b5b2afe7da71827da94ab3733.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "DATABASE_URL": ""
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "MetricsPublisherServiceRole0D59C09D",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs20.x",
+    "Timeout": 10
+   },
+   "DependsOn": [
+    "MetricsPublisherServiceRoleDefaultPolicy84E4AABF",
+    "MetricsPublisherServiceRole0D59C09D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "EasyClaw-Metrics-Stack/MetricsPublisher/Resource",
+    "aws:asset:path": "asset.218c5edf0ace01f88bedbf041abda7e8f6660c5b5b2afe7da71827da94ab3733",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "MetricsPublishSchedule887CC16B": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Publish queue depth metric every minute",
+    "ScheduleExpression": "rate(1 minute)",
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "MetricsPublisher6BE7482F",
+        "Arn"
+       ]
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EasyClaw-Metrics-Stack/MetricsPublishSchedule/Resource"
+   }
+  },
+  "MetricsPublishScheduleAllowEventRuleEasyClawMetricsStackMetricsPublisherDAA1A5610AB81E0E": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "MetricsPublisher6BE7482F",
+      "Arn"
+     ]
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "MetricsPublishSchedule887CC16B",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EasyClaw-Metrics-Stack/MetricsPublishSchedule/AllowEventRuleEasyClawMetricsStackMetricsPublisherDAA1A561"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/z2OwU7DMAyGn2X31IyWA1c2iSOg7gEqL/Umt6mDZmcTivLuKC3i9P225O93C233CvsdPrTx49wEPkM+GfrZ4UOHHHA5jzhIHGlS+FjxnsQbR3GMC+Q+BnLHi6z8ioH9Tx23VJx2A6qSKbxVOO3gkPxMdkAlt+khHy/yb63HdFtYlaMUR3cSU8h9+utJgUpxq+1keGW51vVnsu9kxdVPYdKne/sCzy3sd5MyN7ckxgtBv/EXnt1oePYAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "EasyClaw-Metrics-Stack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "MetricsPublisherArn": {
+   "Description": "Metrics Publisher Lambda ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "MetricsPublisher6BE7482F",
+     "Arn"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
