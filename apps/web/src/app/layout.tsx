@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, DM_Serif_Display } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { ToastProvider } from "@/components/Toast";
 import { ConversationsProvider } from "@/contexts/ConversationsContext";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const dmSerif = DM_Serif_Display({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-serif"
+});
 
 export const metadata: Metadata = {
   title: "EasyClaw — Your Private AI Assistant",
@@ -28,7 +33,7 @@ export default function RootLayout({
       }}
     >
       <html lang="en" className="dark">
-        <body className={inter.className}>
+        <body className={`${inter.variable} ${dmSerif.variable} font-sans antialiased`}>
           <ToastProvider>
             <ConversationsProvider>
               {children}
