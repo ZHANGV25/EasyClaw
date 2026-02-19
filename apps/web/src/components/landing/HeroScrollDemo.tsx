@@ -766,18 +766,15 @@ export default function HeroScrollDemo() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {[
-                            { emoji: "🍽️", ask: "Book me a table for 4 Friday night, somewhere with outdoor seating downtown.", tag: "Reservations" },
-                            { emoji: "✈️", ask: "Find the cheapest direct flight to Miami next weekend. Window seat.", tag: "Travel" },
-                            { emoji: "🏥", ask: "Find me a dentist in Shadyside that takes Blue Cross, open Tuesday after 5.", tag: "Healthcare" },
-                            { emoji: "📦", ask: "Track my Amazon package and let me know when it's out for delivery.", tag: "Tracking" },
-                            { emoji: "🏋️", ask: "Cancel my Planet Fitness membership. I don't want to call them.", tag: "Errands" },
-                            { emoji: "📅", ask: "Remind me to call Mom every Sunday at 2pm.", tag: "Reminders" },
+                            { ask: "Book me a table for 4 Friday night, somewhere with outdoor seating downtown.", tag: "Reservations" },
+                            { ask: "Find the cheapest direct flight to Miami next weekend. Window seat.", tag: "Travel" },
+                            { ask: "Find me a dentist in Shadyside that takes Blue Cross, open Tuesday after 5.", tag: "Healthcare" },
+                            { ask: "Track my Amazon package and let me know when it's out for delivery.", tag: "Tracking" },
+                            { ask: "Cancel my Planet Fitness membership. I don't want to call them.", tag: "Errands" },
+                            { ask: "Remind me to call Mom every Sunday at 2pm.", tag: "Reminders" },
                         ].map((item, i) => (
                             <div key={i} className="flex flex-col gap-4 p-6 rounded-2xl border border-black/5 hover:border-black/15 transition-colors bg-black/[0.02]">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-2xl">{item.emoji}</span>
-                                    <span className="text-[10px] font-mono tracking-[0.2em] uppercase opacity-30">{item.tag}</span>
-                                </div>
+                                <span className="text-[10px] font-mono tracking-[0.2em] uppercase opacity-30">{item.tag}</span>
                                 <p className="text-[15px] text-black/70 leading-relaxed">&ldquo;{item.ask}&rdquo;</p>
                             </div>
                         ))}
