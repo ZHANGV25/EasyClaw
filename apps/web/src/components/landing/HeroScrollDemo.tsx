@@ -758,8 +758,59 @@ export default function HeroScrollDemo() {
                     </div>
                 </div>
 
-                {/* CTA */}
-                <div className="max-w-[1000px] mx-auto px-6 pb-32 flex flex-col items-center text-center gap-6">
+                {/* ─── USE CASES ────────────────────────────────────────── */}
+                <div className="max-w-[1000px] mx-auto px-6 py-32 border-t border-black/10">
+                    <div className="flex flex-col gap-4 mb-16">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">What people ask</span>
+                        <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">One assistant.<br/>A thousand use cases.</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[
+                            { emoji: "🍽️", ask: "Book me a table for 4 Friday night, somewhere with outdoor seating downtown.", tag: "Reservations" },
+                            { emoji: "✈️", ask: "Find the cheapest direct flight to Miami next weekend. Window seat.", tag: "Travel" },
+                            { emoji: "🏥", ask: "Find me a dentist in Shadyside that takes Blue Cross, open Tuesday after 5.", tag: "Healthcare" },
+                            { emoji: "📦", ask: "Track my Amazon package and let me know when it's out for delivery.", tag: "Tracking" },
+                            { emoji: "🏋️", ask: "Cancel my Planet Fitness membership. I don't want to call them.", tag: "Errands" },
+                            { emoji: "📅", ask: "Remind me to call Mom every Sunday at 2pm.", tag: "Reminders" },
+                        ].map((item, i) => (
+                            <div key={i} className="flex flex-col gap-4 p-6 rounded-2xl border border-black/5 hover:border-black/15 transition-colors bg-black/[0.02]">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-2xl">{item.emoji}</span>
+                                    <span className="text-[10px] font-mono tracking-[0.2em] uppercase opacity-30">{item.tag}</span>
+                                </div>
+                                <p className="text-[15px] text-black/70 leading-relaxed">&ldquo;{item.ask}&rdquo;</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ─── HOW IT WORKS ────────────────────────────────────────── */}
+                <div className="max-w-[1000px] mx-auto px-6 py-32 border-t border-black/10">
+                    <div className="flex flex-col gap-4 mb-16">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">How it works</span>
+                        <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Three steps. That&apos;s it.</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                        <div className="flex flex-col gap-4">
+                            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-lg font-medium">1</div>
+                            <h3 className="text-xl font-sans font-medium tracking-tight">Text your request</h3>
+                            <p className="text-base text-black/50 leading-relaxed">Open Telegram, type what you need in plain English. No special syntax. No menus.</p>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-lg font-medium">2</div>
+                            <h3 className="text-xl font-sans font-medium tracking-tight">Agents get to work</h3>
+                            <p className="text-base text-black/50 leading-relaxed">Your request is broken down and dispatched to specialized agents that search, verify, and act in parallel.</p>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-lg font-medium">3</div>
+                            <h3 className="text-xl font-sans font-medium tracking-tight">Done. Confirmed.</h3>
+                            <p className="text-base text-black/50 leading-relaxed">You get a confirmation — booked, ordered, scheduled, cancelled. Whatever you asked for, handled.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ─── CTA ────────────────────────────────────────── */}
+                <div className="max-w-[1000px] mx-auto px-6 py-32 border-t border-black/10 flex flex-col items-center text-center gap-6">
                     <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Beyond chat. Built for action.</h2>
                     <p className="text-lg text-black/50 max-w-md">Get early access to the personal AI that actually gets things done.</p>
                     <Link href="/sign-up" className="mt-4 px-8 py-3 bg-black text-white text-sm font-medium tracking-wide rounded-full hover:bg-black/80 transition-colors">
