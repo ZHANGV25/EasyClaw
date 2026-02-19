@@ -397,7 +397,7 @@ export default function HeroScrollDemo() {
                         transition={{ duration: 0.5 }}
                         className="text-[10px] font-mono tracking-[0.3em] opacity-40 mb-6 uppercase"
                     >
-                        EasyClaw
+                        The AI that doesn&apos;t just answer — it acts.
                     </motion.div>
                     <motion.h1 
                         animate={{ color: textColor }} 
@@ -704,6 +704,41 @@ export default function HeroScrollDemo() {
                     </div>
                 </motion.footer>
 
+            </div>
+
+            {/* ─── VALUE PROPS ────────────────────────────────────────── */}
+            <div className="relative z-10 bg-white text-black">
+                <div className="max-w-[1000px] mx-auto px-6 py-32 grid grid-cols-1 md:grid-cols-2 gap-16">
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">01</span>
+                        <h3 className="text-2xl font-sans font-medium tracking-tight">Acts, not answers.</h3>
+                        <p className="text-base text-black/60 leading-relaxed">Other AIs give you options. EasyClaw books the appointment, orders the food, sends the email.</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">02</span>
+                        <h3 className="text-2xl font-sans font-medium tracking-tight">Lives in Telegram.</h3>
+                        <p className="text-base text-black/60 leading-relaxed">No app to download. No account to set up. Text it like you&apos;d text a friend.</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">03</span>
+                        <h3 className="text-2xl font-sans font-medium tracking-tight">Knows you.</h3>
+                        <p className="text-base text-black/60 leading-relaxed">Your preferences, your schedule, your insurance. It gets smarter the more you use it.</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">04</span>
+                        <h3 className="text-2xl font-sans font-medium tracking-tight">Pay for what you use.</h3>
+                        <p className="text-base text-black/60 leading-relaxed">No subscriptions. No commitments. Credits that never expire.</p>
+                    </div>
+                </div>
+
+                {/* CTA */}
+                <div className="max-w-[1000px] mx-auto px-6 pb-32 flex flex-col items-center text-center gap-6">
+                    <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Stop searching. Start asking.</h2>
+                    <p className="text-lg text-black/50 max-w-md">Get early access to the personal AI that actually gets things done.</p>
+                    <Link href="/sign-up" className="mt-4 px-8 py-3 bg-black text-white text-sm font-medium tracking-wide rounded-full hover:bg-black/80 transition-colors">
+                        Get Started
+                    </Link>
+                </div>
             </div>
         </motion.div>
     );
