@@ -162,7 +162,7 @@ export default function HeroScrollDemo() {
     
     // Instead of useTransform, use derived values for animate props
     const textColor = isLightMode ? "#000000" : "#ffffff";
-    const backgroundColor = isLightMode ? "#ffffff" : "#050505";
+    // const backgroundColor = isLightMode ? "#ffffff" : "#050505"; // Handled by gradient layers now
     const headerBg = isLightMode ? "rgba(255, 255, 255, 0.8)" : "rgba(5, 5, 5, 0.8)";
     const headerBorder = isLightMode ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.1)";
 
@@ -211,7 +211,7 @@ export default function HeroScrollDemo() {
 
     const bubbleY = useTransform(smoothProgress,
         [0.2, 0.35, 0.45, 0.80, 0.90],
-        [0, 0, -100, -100, -120] // Move up slightly (approx 10vh?) let's use pixels. -100px.
+        [0, 0, 0, 0, -120] // Keep at start, then move up at the end
     );
 
 
@@ -265,10 +265,7 @@ export default function HeroScrollDemo() {
     const orbitSizeNum = useTransform(smoothProgress, [0.40, 0.45, 0.80, 0.85], [0, 350, 350, 0]);
     const orbitSize = useTransform(orbitSizeNum, v => `${v}px`);
 
-    // Y Movement: 
-    // Bubble is at -100px. Agents should be centered on the bubble.
-    // So Agents Y center = -100px.
-    const agentsY = useTransform(smoothProgress, [0.2, 0.35, 0.45, 0.80, 0.90], [-100, -100, -100, -100, -100]); 
+
 
     // ─── ACT III: RESULT ─────────────────────────────────────────────
 
@@ -312,10 +309,22 @@ export default function HeroScrollDemo() {
     return (
         <motion.div 
             ref={containerRef} 
-            animate={{ backgroundColor, color: textColor }} 
-            transition={{ duration: 0.5, ease: "easeInOut" }} // Smooth transition for background
-            className="h-[550vh] relative selection:bg-blue-500/20 font-sans"
+            animate={{ color: textColor }} 
+            className="h-[550vh] relative selection:bg-blue-500/20 font-sans bg-black"
         >
+            {/* ─── BACKGROUND LAYERS ────────────────────────────────────── */}
+            <motion.div
+                className="fixed inset-0 z-0 pointer-events-none"
+                animate={{ opacity: isLightMode ? 0 : 1 }}
+                transition={{ duration: 0.5 }}
+                style={{ background: 'var(--bg-gradient-dark)' }}
+            />
+            <motion.div
+                className="fixed inset-0 z-0 pointer-events-none"
+                animate={{ opacity: isLightMode ? 1 : 0 }}
+                transition={{ duration: 0.5 }}
+                style={{ background: 'var(--bg-gradient-light)' }}
+            />
 
             {/* ─── STICKY HEADER ────────────────────────────────────────── */}
             <motion.header 
@@ -376,17 +385,7 @@ export default function HeroScrollDemo() {
                     isLightMode={isLightMode}
                 />
 
-                {/* Background Layer: Grain Noise */}
-                <div className="absolute inset-0 z-0 pointer-events-none">
-                    <motion.div 
-                        className="absolute inset-0"
-                        animate={{ opacity: noiseOpacity }}
-                        transition={{ duration: 0.5 }}
-                        style={{ 
-                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` 
-                        }}
-                    />
-                </div>
+
                 
                 {/* ─── ACT 0: INTRO HERO ────────────────────────────────────── */}
                  <motion.div 
@@ -403,7 +402,7 @@ export default function HeroScrollDemo() {
                     <motion.h1 
                         animate={{ color: textColor }} 
                         transition={{ duration: 0.5 }}
-                        className="text-5xl md:text-7xl lg:text-8xl font-serif text-center tracking-tighter leading-[0.9] mix-blend-difference"
+                        className="text-5xl md:text-7xl lg:text-8xl font-sans font-medium text-center tracking-tight leading-[0.9] mix-blend-difference"
                     >
                         ASK. WE HANDLE<br/>
                         <span className="opacity-50">THE REST.</span>
@@ -459,7 +458,7 @@ export default function HeroScrollDemo() {
 
 
                 {/* ─── ACT II: AGENTS & ORBIT SYSTEM ────────────────────── */}
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transform: "translateY(-100px)" }}>
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transform: "translateY(0px)" }}>
                     {/* 
                         Orbit Container
                         - Centered on screen (parent is centered flex)
