@@ -122,7 +122,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* ─── Card ──────────────────────────── */}
-        <div className="glass-panel rounded-2xl p-8 shadow-2xl animate-fade-in">
+        <div className="glass-panel rounded-2xl p-5 sm:p-8 shadow-2xl animate-fade-in">
           {/* Step 0: Name */}
           {step === 0 && (
             <div key="step-0">
@@ -201,18 +201,18 @@ export default function OnboardingPage() {
           )}
 
           {/* ─── Actions ─────────────────────── */}
-          <div className="flex items-center justify-between mt-8">
+          <div className="flex flex-col-reverse sm:flex-row items-center justify-between mt-8 gap-3 sm:gap-0">
             <button
               onClick={() => setStep(Math.max(0, step - 1))}
               disabled={step === 0}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-0 disabled:pointer-events-none transition-all duration-200"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-0 disabled:pointer-events-none transition-all duration-200"
             >
               Back
             </button>
             <button
               onClick={handleNext}
               disabled={!canAdvance() || isSubmitting}
-              className="px-6 py-3 rounded-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] text-sm font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)] flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] text-sm font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)] flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>

@@ -76,7 +76,7 @@ const ExplanationBox = ({ title, description, visible, isLightMode, cta }: { tit
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.5 }}
-                    className={`absolute left-8 top-1/2 -translate-y-1/2 max-w-xs z-40 pointer-events-none flex flex-col items-start text-left`}
+                    className={`absolute left-4 right-4 md:left-8 md:right-auto top-1/2 -translate-y-1/2 max-w-none md:max-w-xs z-40 pointer-events-none flex flex-col items-start text-left`}
                 >
                     <div className={`h-[1px] w-12 mb-4 ${isLightMode ? 'bg-black/20' : 'bg-white/20'}`} />
                     <h3 className={`text-sm font-mono uppercase tracking-widest mb-2 ${isLightMode ? 'text-black/60' : 'text-white/60'}`}>
@@ -990,6 +990,48 @@ export default function HeroScrollDemo() {
                     <Link href="/sign-up" className="mt-4 px-8 py-3 bg-black text-white text-sm font-medium tracking-wide rounded-full hover:bg-black/80 transition-colors">
                         Get Started
                     </Link>
+                </div>
+            </div>
+
+            {/* ─── FOOTER ────────────────────────────────────────── */}
+            <div className="bg-[#050505] text-white/50 py-20 px-6 border-t border-white/5 relative z-30">
+                <div className="max-w-[1000px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+                    {/* Brand */}
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-xl font-serif text-white tracking-tight">EasyClaw</h3>
+                        <p className="text-sm">The AI that acts.</p>
+                        <p className="text-xs opacity-40 mt-auto">© 2026 EasyClaw. All rights reserved.</p>
+                    </div>
+
+                    {/* Product */}
+                    <div className="flex flex-col gap-4">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">Product</span>
+                        <a href="#" className="text-sm hover:text-white transition-colors">Features</a>
+                        <a href="#" className="text-sm hover:text-white transition-colors">Pricing</a>
+                        <a href="#" className="text-sm hover:text-white transition-colors">FAQ</a>
+                        <a href="#" className="text-sm hover:text-white transition-colors">Changelog</a>
+                    </div>
+
+                    {/* Legal */}
+                    <div className="flex flex-col gap-4">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">Legal</span>
+                        <a href="#" className="text-sm hover:text-white transition-colors">Privacy Policy</a>
+                        <a href="#" className="text-sm hover:text-white transition-colors">Terms of Service</a>
+                         <a href="#" className="text-sm hover:text-white transition-colors">Cookie Policy</a>
+                    </div>
+
+                    {/* Connect */}
+                    <div className="flex flex-col gap-4">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">Connect</span>
+                        <a href="#" target="_blank" rel="noopener noreferrer" className="text-sm hover:text-white transition-colors">Twitter / X</a>
+                        <a href="#" target="_blank" rel="noopener noreferrer" className="text-sm hover:text-white transition-colors">Discord</a>
+                        <a href="mailto:vhzhang2020@gmail.com" className="text-sm hover:text-white transition-colors">Email</a>
+                    </div>
+                </div>
+
+                <div className="max-w-[1000px] mx-auto pt-8 border-t border-white/5 flex items-center justify-between text-xs opacity-40">
+                    <span>Built in Pittsburgh 🏗️</span>
+                    <a href="#" className="hover:text-white transition-colors">Status</a>
                 </div>
             </div>
         </>

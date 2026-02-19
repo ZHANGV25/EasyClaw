@@ -70,7 +70,7 @@ export default function TelegramPage() {
           }
         </p>
 
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 max-w-sm mx-auto">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 sm:p-8 w-full max-w-sm mx-auto">
           {connected ? (
              <div className="space-y-6">
               <div className="space-y-2">

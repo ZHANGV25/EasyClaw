@@ -125,7 +125,7 @@ export default function DashboardPage() {
         {/* ─── Stats Cards ────────────────────── */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Credits */}
-          <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
             <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">
               Available Credits
             </h3>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Assistant Status */}
-          <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
             <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">
               Assistant Status
             </h3>
@@ -162,7 +162,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Usage Today */}
-          <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <div className="p-4 sm:p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
             <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">
               Usage (7d)
             </h3>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Usage Chart ────────────────────── */}
-        <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-6">
             Daily Usage
           </h3>
@@ -207,7 +207,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ─── Transactions ───────────────────── */}
-        <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
             Recent Activity
           </h3>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
                       {tx.type === "PURCHASE" ? "+" : tx.type === "FREE_TIER" ? "★" : "-"}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate max-w-[150px] sm:max-w-none">
                         {tx.description}
                       </p>
                       <p className="text-xs text-[var(--color-text-muted)]">
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <span className={`text-sm font-semibold ${
+                  <span className={`text-sm font-semibold whitespace-nowrap ${
                     tx.amount >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-text-primary)]"
                   }`}>
                     {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)}

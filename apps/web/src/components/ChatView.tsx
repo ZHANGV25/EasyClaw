@@ -104,7 +104,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
       <div className="flex-1 flex min-w-0 relative">
         {/* Chat Area */}
         <div
-          className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${openArtifact ? "w-[50%]" : "w-full"
+          className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${openArtifact ? "hidden lg:flex lg:w-[50%]" : "w-full"
             }`}
         >
           {/* Waking Up Overlay */}
@@ -312,7 +312,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
 
         {/* Artifact Panel — slides in from right */}
         {openArtifact && (
-          <div className="w-[50%] shrink-0 animate-slide-in-right">
+          <div className="w-full lg:w-[50%] shrink-0 animate-slide-in-right">
             <ArtifactPanel
               artifact={openArtifact}
               onClose={handleClosePanel}

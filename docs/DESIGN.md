@@ -94,9 +94,11 @@ Our design language is **"Apple-level Polish"**: minimalist, clean, and highly f
     - `backdrop-filter: blur(12px)`
     - Minimal borders: `1px solid rgba(0,0,0,0.1)`
 - **Cards:**
-    - Flat, white background.
-    - Subtle borders: `border-zinc-200`.
-    - Soft shadows on hover.
+    - `rounded-xl`.
+    - `bg-surface` or `bg-card`.
+    - `border border-zinc-200`.
+    - `border-l-4` for accent distinction (e.g., status or category).
+    - `shadow-sm` resting, `shadow-md` on hover.
 
 ### Dark Mode
 - Full support via CSS variables (`.dark` class).

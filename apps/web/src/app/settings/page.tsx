@@ -123,7 +123,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Settings</h1>
 
         {/* ─── Tabs ───────────────────────────── */}
-        <div className="flex border-b border-[var(--color-border-subtle)]">
+        <div className="flex border-b border-[var(--color-border-subtle)] overflow-x-auto custom-scrollbar">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -131,7 +131,7 @@ export default function SettingsPage() {
                 setActiveTab(tab.id);
                 setMessage(null);
               }}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap shrink-0 ${
                 activeTab === tab.id
                   ? "border-[var(--color-text-primary)] text-[var(--color-text-primary)]"
                   : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
@@ -260,8 +260,8 @@ export default function SettingsPage() {
                         <div className="w-8 h-8 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center text-[var(--color-text-secondary)]">
                           🔒
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-[var(--color-text-primary)] font-mono">
+                        <div className="min-w-0 flex-1 mr-2">
+                          <p className="text-sm font-medium text-[var(--color-text-primary)] font-mono truncate">
                             {secret.key}
                           </p>
                           <p className="text-xs text-[var(--color-text-muted)]">
