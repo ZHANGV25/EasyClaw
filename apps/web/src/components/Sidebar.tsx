@@ -5,6 +5,7 @@ import { UserButton, useUser, useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useConversations } from "@/contexts/ConversationsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface SidebarProps {
   mobileMenuOpen: boolean;
@@ -74,20 +75,20 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
 
   const isOnChatPage = pathname.startsWith("/chat");
 
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-bg-secondary)] border-r border-[var(--color-border-subtle)] transform transition-transform duration-300 lg:relative lg:translate-x-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 glass-panel border-r-0 transform transition-transform duration-300 lg:relative lg:translate-x-0 flex flex-col ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         } ${className}`}
       >
         {/* Header */}
         <div className="h-16 flex items-center px-6 border-b border-[var(--color-border-subtle)] shrink-0">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-white font-bold text-sm">
-              EC
-            </div>
-            <span className="text-lg font-semibold text-[var(--color-text-primary)]">
+            {/* Logo removed as requested */}
+            <span className="text-lg font-semibold text-[var(--color-text-primary)] tracking-tight">
               EasyClaw
             </span>
           </Link>
@@ -97,7 +98,7 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
         <div className="px-4 py-3 shrink-0">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--color-accent)] text-white text-sm font-semibold hover:bg-[var(--color-accent-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)] cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] text-sm font-bold tracking-wide uppercase hover:opacity-90 transition-all duration-200 hover:shadow-[0_0_20px_var(--color-accent-glow)] cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -152,8 +153,8 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
                         key={conv.id}
                         className={`group relative flex items-center rounded-lg transition-colors duration-150 ${
                           isActive
-                            ? "bg-[var(--color-surface)] border border-[var(--color-border-subtle)]"
-                            : "hover:bg-[var(--color-surface)]/50"
+                            ? "bg-[var(--color-surface-hover)] border border-[var(--color-border)] shadow-sm"
+                            : "hover:bg-[var(--color-surface-hover)]"
                         }`}
                       >
                         <Link
@@ -184,7 +185,7 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
                           </button>
 
                           {menuOpenId === conv.id && (
-                            <div className="absolute right-0 top-8 z-50 w-36 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-xl py-1 animate-fade-in">
+                            <div className="absolute right-0 top-8 z-50 w-36 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-xl py-1 animate-fade-in glass-panel">
                               <button
                                 onClick={() => startRename(conv.id, conv.title)}
                                 className="w-full text-left px-3 py-1.5 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer"
@@ -218,8 +219,8 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer ${
                     isActive
-                      ? "bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
+                      ? "bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] border border-[var(--color-border)] shadow-sm"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                   }`}
                 >
                   {item.icon}
@@ -231,8 +232,8 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
         </div>
 
         {/* User Section */}
-        <div className="p-4 border-t border-[var(--color-border-subtle)] shrink-0">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="p-4 border-t border-[var(--color-border-subtle)] shrink-0 space-y-3">
+          <div className="flex items-center gap-3">
             <UserButton afterSignOutUrl="/" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
@@ -243,12 +244,30 @@ export function Sidebar({ mobileMenuOpen, setMobileMenuOpen, className = "" }: S
               </p>
             </div>
           </div>
-          <button 
-            onClick={() => signOut()}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-200 cursor-pointer"
-          >
-            Sign Out
-          </button>
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={() => signOut()}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-200 cursor-pointer"
+            >
+              Sign Out
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="px-3 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-200 cursor-pointer"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </aside>
 

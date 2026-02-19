@@ -6,6 +6,8 @@ import { ToastProvider } from "@/components/Toast";
 import { ConversationsProvider } from "@/contexts/ConversationsContext";
 import "./globals.css";
 
+import { ThemeProvider } from "@/contexts/ThemeContext";
+
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const dmSerif = DM_Serif_Display({
   weight: "400",
@@ -32,13 +34,15 @@ export default function RootLayout({
         variables: { colorPrimary: "#7c5cfc" },
       }}
     >
-      <html lang="en" className="dark">
+      <html lang="en" suppressHydrationWarning>
         <body className={`${inter.variable} ${dmSerif.variable} font-sans antialiased`}>
-          <ToastProvider>
-            <ConversationsProvider>
-              {children}
-            </ConversationsProvider>
-          </ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ConversationsProvider>
+                {children}
+              </ConversationsProvider>
+            </ToastProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

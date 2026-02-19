@@ -89,7 +89,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
   };
 
   return (
-    <div className="flex h-screen bg-[var(--color-bg-chat)]">
+    <div className="flex h-screen">
       <Sidebar
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
@@ -118,7 +118,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
           )}
 
           {/* Chat Header */}
-          <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/60 backdrop-blur-md shrink-0">
+          <header className="flex items-center justify-between px-4 sm:px-6 py-3 glass-panel border-b-0 shrink-0">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -151,7 +151,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
           </header>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 pb-32 custom-scrollbar">
             <div className="max-w-3xl mx-auto space-y-6">
               {/* Load earlier messages */}
               {hasMoreHistory && (
@@ -159,7 +159,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                   <button
                     onClick={loadMoreHistory}
                     disabled={isLoadingHistory}
-                    className="px-4 py-1.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-200 disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-1.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-200 disabled:opacity-50 cursor-pointer"
                   >
                     {isLoadingHistory ? (
                       <span className="flex items-center gap-2">
@@ -204,9 +204,9 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                     {/* Message Bubble - Hide if empty and streaming (let typing indicator show instead) */}
                     {(!isStreaming || message.content.trim() !== "" || message.role !== "assistant" || i !== messages.length - 1) && (
                       <div
-                        className={`rounded-2xl px-4 py-3 shadow-sm ${message.role === "user"
-                          ? "bg-[var(--color-accent)] text-white rounded-br-md"
-                          : "bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] rounded-bl-md"
+                        className={`rounded-[22px] px-5 py-3.5 shadow-sm leading-snug text-[17px] font-normal antialiased ${message.role === "user"
+                          ? "bg-[var(--color-bubble-user-bg)] text-[var(--color-bubble-user-text)] rounded-br-[4px] shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+                          : "bg-[var(--color-bubble-assistant-bg)] text-[var(--color-bubble-assistant-text)] rounded-bl-[4px] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
                           }`}
                       >
                         <div className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -221,7 +221,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                         {!(isStreaming && message.role === "assistant" && i === messages.length - 1) && (
                           <span
                             className={`text-[10px] mt-1.5 block ${message.role === "user"
-                              ? "text-white/60"
+                              ? "text-[var(--color-bubble-user-text)] opacity-60"
                               : "text-[var(--color-text-muted)]"
                               }`}
                           >
@@ -268,12 +268,12 @@ export default function ChatView({ conversationId }: ChatViewProps) {
           </div>
 
           {/* Input */}
-          <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)]/80 backdrop-blur-md px-4 sm:px-6 py-4 shrink-0">
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-10 bg-gradient-to-t from-[var(--color-bg-gradient-stop)] to-transparent z-10">
             <form
               onSubmit={handleSubmit}
               className="max-w-3xl mx-auto flex items-end gap-3"
             >
-              <div className="flex-1 relative shadow-sm">
+              <div className="flex-1 relative shadow-2xl rounded-[26px]">
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -281,23 +281,27 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                   onKeyDown={handleKeyDown}
                   placeholder="Ask anything..."
                   rows={1}
-                  className="w-full resize-none rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all duration-200"
+                  className="w-full resize-none rounded-[26px] bg-[var(--color-surface)]/50 border border-[var(--color-border)] px-5 py-3.5 text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-[var(--color-surface)] focus:border-[var(--color-accent)]/20 backdrop-blur-xl transition-all duration-200 custom-scrollbar"
                   style={{ maxHeight: "150px" }}
                 />
               </div>
               <button
                 type="submit"
                 disabled={!input.trim() || isStreaming}
-                className="p-3 rounded-xl bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent)]/20 flex-shrink-0 cursor-pointer"
+                className="p-3.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg flex-shrink-0 cursor-pointer"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="w-5 h-5"
-                >
-                  <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-                </svg>
+                {isStreaming ? (
+                  <div className="w-5 h-5 border-2 border-[var(--color-text-primary)] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-5 h-5"
+                  >
+                    <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+                  </svg>
+                )}
               </button>
             </form>
             <p className="text-center text-[10px] text-[var(--color-text-muted)] mt-2 max-w-2xl mx-auto">

@@ -95,7 +95,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)] px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-lg">
         {/* ─── Progress ──────────────────────── */}
         <div className="flex items-center gap-2 mb-10">
@@ -105,7 +105,7 @@ export default function OnboardingPage() {
                 className={`h-1 w-full rounded-full transition-all duration-500 ${
                   i <= step
                     ? "bg-[var(--color-accent)]"
-                    : "bg-[var(--color-border)]"
+                    : "bg-[var(--color-border-subtle)]"
                 }`}
               />
               <span
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* ─── Card ──────────────────────────── */}
-        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 animate-fade-in">
+        <div className="glass-panel rounded-2xl p-8 shadow-2xl animate-fade-in">
           {/* Step 0: Name */}
           {step === 0 && (
             <div key="step-0">
@@ -136,7 +136,7 @@ export default function OnboardingPage() {
                 value={form.name}
                 onChange={(e) => update("name", e.target.value)}
                 placeholder="e.g. Victor"
-                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent-glow)] transition-all duration-200"
+                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3.5 text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all duration-200"
                 onKeyDown={(e) => e.key === "Enter" && canAdvance() && handleNext()}
               />
             </div>
@@ -152,7 +152,7 @@ export default function OnboardingPage() {
               <select
                 value={form.timezone}
                 onChange={(e) => update("timezone", e.target.value)}
-                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent-glow)] transition-all duration-200 appearance-none cursor-pointer"
+                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3.5 text-base text-[var(--color-text-primary)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all duration-200 appearance-none cursor-pointer"
               >
                 {TIMEZONES.map((tz) => (
                   <option key={tz} value={tz} className="bg-[var(--color-bg-secondary)]">
@@ -176,7 +176,7 @@ export default function OnboardingPage() {
                 onChange={(e) => update("interests", e.target.value)}
                 placeholder="e.g. I'm a startup founder. I need help with research, scheduling, and writing emails..."
                 rows={4}
-                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent-glow)] transition-all duration-200 resize-none"
+                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3.5 text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all duration-200 resize-none"
               />
             </div>
           )}
@@ -194,7 +194,7 @@ export default function OnboardingPage() {
                 value={form.assistantName}
                 onChange={(e) => update("assistantName", e.target.value)}
                 placeholder="e.g. Jarvis, Friday, Claude..."
-                className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent-glow)] transition-all duration-200"
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3.5 text-base text-white placeholder:text-white/30 focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all duration-200"
                 onKeyDown={(e) => e.key === "Enter" && canAdvance() && handleNext()}
               />
             </div>
@@ -212,7 +212,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleNext}
               disabled={!canAdvance() || isSubmitting}
-              className="px-6 py-2.5 rounded-xl bg-[var(--color-accent)] text-white text-sm font-semibold hover:bg-[var(--color-accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)] flex items-center gap-2"
+              className="px-6 py-3 rounded-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] text-sm font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)] flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>

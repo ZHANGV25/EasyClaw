@@ -67,7 +67,7 @@ const ScrollTracker = ({ currentAct, isLightMode }: { currentAct: Act, isLightMo
     );
 };
 
-const ExplanationBox = ({ title, description, visible, isLightMode }: { title: string, description: string, visible: boolean, isLightMode: boolean }) => {
+const ExplanationBox = ({ title, description, visible, isLightMode, cta }: { title: string, description: string, visible: boolean, isLightMode: boolean, cta?: { text: string, href: string } }) => {
     return (
         <AnimatePresence>
             {visible && (
@@ -85,6 +85,21 @@ const ExplanationBox = ({ title, description, visible, isLightMode }: { title: s
                     <p className={`text-xl md:text-2xl font-sans font-medium leading-relaxed ${isLightMode ? 'text-black' : 'text-white'}`}>
                         {description}
                     </p>
+                    {cta && (
+                        <Link href={cta.href} className="mt-8 pointer-events-auto">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-colors ${
+                                    isLightMode 
+                                        ? 'bg-black text-white hover:bg-black/80' 
+                                        : 'bg-white text-black hover:bg-white/90'
+                                }`}
+                            >
+                                {cta.text}
+                            </motion.button>
+                        </Link>
+                    )}
                 </motion.div>
             )}
         </AnimatePresence>
@@ -299,7 +314,7 @@ export default function HeroScrollDemo() {
 
     // ─── EXPLANATION STATE ──────────────────────────────────────────
 
-    const [explanation, setExplanation] = useState<{title: string, desc: string, show: boolean}>({ title: "", desc: "", show: false });
+    const [explanation, setExplanation] = useState<{title: string, desc: string, show: boolean, cta?: { text: string, href: string }}>({ title: "", desc: "", show: false });
 
     useEffect(() => {
         const unsubscribe = scrollYProgress.on("change", (v) => {
@@ -320,10 +335,11 @@ export default function HeroScrollDemo() {
                  setExplanation({
                     title: "Done.",
                     desc: "Booked, confirmed, and on your calendar. You didn't lift a finger.",
-                    show: true
+                    show: true,
+                    cta: { text: "Get Started", href: "/sign-up" }
                 });
             } else {
-                setExplanation(prev => ({ ...prev, show: false }));
+                setExplanation(prev => ({ ...prev, show: false, cta: undefined }));
             }
         });
         return () => unsubscribe();
@@ -334,7 +350,7 @@ export default function HeroScrollDemo() {
         <motion.div 
             ref={containerRef} 
             animate={{ color: textColor }} 
-            className="h-[550vh] relative selection:bg-blue-500/20 font-sans bg-black"
+            className="h-[400vh] relative selection:bg-blue-500/20 font-sans bg-black"
         >
             {/* ─── BACKGROUND LAYERS ────────────────────────────────────── */}
             <motion.div
@@ -407,6 +423,7 @@ export default function HeroScrollDemo() {
                     description={explanation.desc} 
                     visible={explanation.show} 
                     isLightMode={isLightMode}
+                    cta={explanation.cta}
                 />
 
 
@@ -483,7 +500,7 @@ export default function HeroScrollDemo() {
 
 
                 {/* ─── ACT II: AGENTS & ORBIT SYSTEM ────────────────────── */}
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transform: "translateX(50px)" }}>
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transform: "translateX(70px)" }}>
                     {/* 
                         Orbit Container
                         - Centered on screen (parent is centered flex)

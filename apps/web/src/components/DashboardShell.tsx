@@ -7,7 +7,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)] flex">
+    <div className="min-h-screen flex">
       {/* ─── Sidebar ────────────────────────── */}
       <Sidebar 
         mobileMenuOpen={mobileMenuOpen} 
@@ -17,7 +17,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* ─── Content ────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
-        <header className="lg:hidden h-16 flex items-center gap-4 px-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-secondary)]">
+        <header className="lg:hidden h-16 flex items-center gap-4 px-4 border-b border-[var(--color-border-subtle)] bg-[var(--glass-bg)] backdrop-blur-md sticky top-0 z-30">
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="p-2 -ml-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] cursor-pointer"

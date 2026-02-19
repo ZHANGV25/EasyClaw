@@ -133,8 +133,8 @@ export default function SettingsPage() {
               }}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
                 activeTab === tab.id
-                  ? "border-[var(--color-accent)] text-[var(--color-text-primary)]"
-                  : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-subtle)]"
+                  ? "border-[var(--color-text-primary)] text-[var(--color-text-primary)]"
+                  : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)]"
               }`}
             >
               {tab.label}
@@ -167,7 +167,7 @@ export default function SettingsPage() {
                   type="text"
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  className="w-full max-w-md rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                  className="w-full max-w-md rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all"
                 />
               </div>
               <div>
@@ -188,7 +188,7 @@ export default function SettingsPage() {
             <button
               onClick={handleSaveProfile}
               disabled={saving}
-              className="px-5 py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-6 py-2.5 rounded-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] text-xs font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-glow)]"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                   type="text"
                   value={assistant.name}
                   onChange={(e) => setAssistant({ ...assistant, name: e.target.value })}
-                  className="w-full max-w-md rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                  className="w-full max-w-md rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all"
                 />
               </div>
               <div>
@@ -221,7 +221,7 @@ export default function SettingsPage() {
                   rows={6}
                   value={assistant.interests}
                   onChange={(e) => setAssistant({ ...assistant, interests: e.target.value })}
-                  className="w-full rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] resize-vertical"
+                  className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] resize-vertical transition-all"
                 />
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                   {secrets.map((secret) => (
                     <div
                       key={secret.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]"
+                      className="flex items-center justify-between p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center text-[var(--color-text-secondary)]">
@@ -297,7 +297,7 @@ export default function SettingsPage() {
                     placeholder="e.g. NOTION_API_KEY"
                     value={newSecretKey}
                     onChange={(e) => setNewSecretKey(e.target.value.toUpperCase().replace(/\s/g, "_"))}
-                    className="w-full rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-2 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]"
+                    className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-2.5 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all"
                   />
                 </div>
                 <div>
@@ -310,13 +310,13 @@ export default function SettingsPage() {
                     placeholder="sk-..."
                     value={newSecretValue}
                     onChange={(e) => setNewSecretValue(e.target.value)}
-                    className="w-full rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]"
+                    className="w-full rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-[var(--color-bg-elevated)] focus:border-[var(--color-accent)] transition-all"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={!newSecretKey || !newSecretValue || saving}
-                  className="px-5 py-2 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-6 py-2.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] text-xs font-bold uppercase tracking-widest text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   {saving ? "Adding..." : "Add to Vault"}
                 </button>
