@@ -10,3 +10,13 @@ export interface AgentStep {
   args?: Record<string, any>; // For tool calls
   output?: string; // For tool/terminal output
 }
+
+export interface Task {
+  id: string;
+  conversationId: string;
+  summary: string;
+  status: "completed" | "partial" | "failed";
+  steps: AgentStep[];
+  createdAt: string;
+  completedAt?: string;
+}

@@ -177,6 +177,7 @@ export default function HeroScrollDemo() {
 
     const [currentAct, setCurrentAct] = useState<Act>("INTRO");
     const [isLightMode, setIsLightMode] = useState(false);
+    const [openFAQ, setOpenFAQ] = useState<number | null>(null);
 
     // Update current act based on scroll - Updated Ranges for EXTENDED SWARM PAUSE
     useEffect(() => {
@@ -820,6 +821,165 @@ export default function HeroScrollDemo() {
                             <h3 className="text-xl font-sans font-medium tracking-tight">Done. Confirmed.</h3>
                             <p className="text-base text-black/50 leading-relaxed">You get a confirmation — booked, ordered, scheduled, cancelled. Whatever you asked for, handled.</p>
                         </div>
+                    </div>
+                </div>
+
+                {/* ─── PRICING ────────────────────────────────────────── */}
+                <div className="max-w-[1000px] mx-auto px-6 py-32 border-t border-black/10">
+                    <div className="flex flex-col gap-4 mb-16">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">Pricing</span>
+                        <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Pay for what you use.<br/>Nothing more.</h2>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                        {/* Free Tier */}
+                        <div className="flex flex-col p-8 rounded-2xl border border-black/5 bg-white h-full relative group hover:border-black/10 transition-colors">
+                            <div className="mb-6">
+                                <h3 className="text-lg font-medium tracking-tight mb-2">Free</h3>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-4xl font-medium tracking-tight">$0</span>
+                                </div>
+                                <p className="text-sm text-black/50 mt-2">To get started</p>
+                            </div>
+                            
+                            <ul className="flex flex-col gap-3 mb-8 flex-1">
+                                {[
+                                    "50 free credits",
+                                    "Basic tasks",
+                                    "Telegram access",
+                                    "7-day history"
+                                ].map((feature, i) => (
+                                    <li key={i} className="flex items-center gap-3 text-sm text-black/70">
+                                        <svg className="w-4 h-4 text-black/30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        {feature}
+                                    </li>
+                                ))}
+                            </ul>
+                            
+                            <Link href="/sign-up" className="w-full py-2.5 px-4 rounded-full border border-black/10 text-sm font-medium text-center hover:bg-black/5 transition-colors">
+                                Get Started
+                            </Link>
+                        </div>
+
+                        {/* Credits Tier (Recommended) */}
+                        <div className="flex flex-col p-8 rounded-2xl border border-black/20 bg-white shadow-xl shadow-black/5 h-full relative transform md:-translate-y-4">
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black text-white text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-medium">
+                                Recommended
+                            </div>
+                            
+                            <div className="mb-6">
+                                <h3 className="text-lg font-medium tracking-tight mb-2">Credits</h3>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-sm text-black/50">From</span>
+                                    <span className="text-4xl font-medium tracking-tight">$5</span>
+                                </div>
+                                <p className="text-sm text-black/50 mt-2">For real work</p>
+                            </div>
+                            
+                            <ul className="flex flex-col gap-3 mb-8 flex-1">
+                                {[
+                                    "Everything in Free",
+                                    "Complex tasks",
+                                    "Full history",
+                                    "Priority response",
+                                    "Credits never expire"
+                                ].map((feature, i) => (
+                                    <li key={i} className="flex items-center gap-3 text-sm text-black/80 font-medium">
+                                        <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        {feature}
+                                    </li>
+                                ))}
+                            </ul>
+                            
+                            <Link href="/sign-up" className="w-full py-2.5 px-4 rounded-full bg-black text-white text-sm font-medium text-center hover:bg-black/80 transition-colors">
+                                Get Started
+                            </Link>
+                        </div>
+
+                        {/* Team Tier */}
+                        <div className="flex flex-col p-8 rounded-2xl border border-black/5 bg-white h-full hover:border-black/10 transition-colors">
+                            <div className="mb-6">
+                                <h3 className="text-lg font-medium tracking-tight mb-2">Team</h3>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-medium tracking-tight text-black/40">Coming soon</span>
+                                </div>
+                                <p className="text-sm text-black/50 mt-2">For power users</p>
+                            </div>
+                            
+                            <ul className="flex flex-col gap-3 mb-8 flex-1 opacity-60">
+                                {[
+                                    "Everything in Credits",
+                                    "Shared assistants",
+                                    "Admin dashboard",
+                                    "Custom integrations",
+                                    "Volume discounts"
+                                ].map((feature, i) => (
+                                    <li key={i} className="flex items-center gap-3 text-sm text-black/70">
+                                        <svg className="w-4 h-4 text-black/30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        {feature}
+                                    </li>
+                                ))}
+                            </ul>
+                            
+                            <a href="mailto:hello@easyclaw.com" className="w-full py-2.5 px-4 rounded-full border border-black/5 text-sm font-medium text-center text-black/40 hover:text-black hover:border-black/20 transition-colors">
+                                Join Waitlist
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="mt-12 text-center">
+                        <p className="text-sm text-black/40 max-w-lg mx-auto leading-relaxed">
+                            <span className="font-medium text-black/60">What&apos;s a credit?</span> One credit ≈ one simple task. Complex tasks use more. You always see the cost before confirming.
+                        </p>
+                    </div>
+
+                    </div>
+
+                {/* ─── FAQ ────────────────────────────────────────── */}
+                <div className="max-w-[700px] mx-auto px-6 py-32 border-t border-black/10">
+                    <div className="flex flex-col gap-4 mb-16 text-center">
+                        <span className="text-[10px] font-mono tracking-[0.3em] uppercase opacity-40">FAQ</span>
+                        <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Questions? Answered.</h2>
+                    </div>
+
+                    <div className="flex flex-col">
+                        {[
+                            { q: "What can EasyClaw actually do?", a: "Anything you'd ask a personal assistant — book appointments, find flights, set reminders, cancel subscriptions, track packages, research options, and more. If it can be done online, EasyClaw can handle it." },
+                            { q: "How is this different from ChatGPT?", a: "ChatGPT gives you answers. EasyClaw takes action. Instead of telling you which dentists are available, we book the appointment. Instead of listing flight options, we reserve the seat." },
+                            { q: "Is my data safe?", a: "Yes. Your conversations are encrypted, your personal details are stored securely, and we never sell your data. You can delete your account and all data at any time." },
+                            { q: "What's a credit?", a: "One credit covers one simple task — like setting a reminder or answering a question. Bigger tasks (booking a flight, multi-step research) use more credits. You always see the estimated cost before confirming." },
+                            { q: "Do I need to install anything?", a: "No. EasyClaw works through Telegram — just text it like you'd text a friend. You can also use the web dashboard to manage your account and see activity." },
+                            { q: "What if I run out of credits?", a: "You'll get a heads-up when you're running low. Top up anytime from the dashboard — credits never expire. Your assistant pauses non-urgent tasks until you add more." },
+                            { q: "Can I use it outside the US?", a: "Yes. EasyClaw works anywhere Telegram does. Some location-specific tasks (like booking a local restaurant) work best in supported regions, which we're expanding." },
+                        ].map((item, i) => (
+                            <div key={i} className="border-b border-black/10">
+                                <button
+                                    onClick={() => setOpenFAQ(openFAQ === i ? null : i)}
+                                    className="w-full py-6 flex items-center justify-between text-left group"
+                                >
+                                    <span className="text-lg font-medium text-black group-hover:text-black/70 transition-colors pr-8">{item.q}</span>
+                                    <div className={`relative w-4 h-4 transition-transform duration-300 ${openFAQ === i ? "rotate-45" : ""}`}>
+                                        <div className="absolute top-1/2 left-0 w-4 h-[1.5px] bg-black -translate-y-1/2" />
+                                        <div className="absolute top-0 left-1/2 h-4 w-[1.5px] bg-black -translate-x-1/2" />
+                                    </div>
+                                </button>
+                                <AnimatePresence initial={false}>
+                                    {openFAQ === i && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                                            className="overflow-hidden"
+                                        >
+                                            <p className="pb-6 text-base text-black/60 leading-relaxed max-w-[90%]">
+                                                {item.a}
+                                            </p>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
