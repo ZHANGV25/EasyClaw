@@ -82,7 +82,7 @@ const ExplanationBox = ({ title, description, visible, isLightMode }: { title: s
                     <h3 className={`text-sm font-mono uppercase tracking-widest mb-2 ${isLightMode ? 'text-black/60' : 'text-white/60'}`}>
                         {title}
                     </h3>
-                    <p className={`text-xl md:text-2xl font-serif leading-relaxed ${isLightMode ? 'text-black' : 'text-white'}`}>
+                    <p className={`text-xl md:text-2xl font-sans font-medium leading-relaxed ${isLightMode ? 'text-black' : 'text-white'}`}>
                         {description}
                     </p>
                 </motion.div>
@@ -121,6 +121,36 @@ function useCounter(value: number, duration: number = 2000, trigger: boolean) {
 
     return count;
 }
+
+const useTypewriter = (text: string, speed: number = 30, startDelay: number = 0, trigger: boolean) => {
+    const [displayedText, setDisplayedText] = useState("");
+    const [isComplete, setIsComplete] = useState(false);
+
+    useEffect(() => {
+        if (!trigger) {
+            setDisplayedText("");
+            setIsComplete(false);
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            let index = 0;
+            const intervalId = setInterval(() => {
+                setDisplayedText(text.slice(0, index + 1));
+                index++;
+                if (index === text.length) {
+                    clearInterval(intervalId);
+                    setIsComplete(true);
+                }
+            }, speed);
+            return () => clearInterval(intervalId);
+        }, startDelay);
+
+        return () => clearTimeout(timeoutId);
+    }, [text, speed, startDelay, trigger]);
+
+    return { text: displayedText, isComplete };
+};
 
 
 export default function HeroScrollDemo() {
@@ -206,7 +236,7 @@ export default function HeroScrollDemo() {
     // Bubble stays centered, but moves up slightly to act as the "Hub"
     const bubbleX = useTransform(smoothProgress,
         [0.2, 0.35, 0.45, 0.80, 0.90], 
-        [0, 0, 0, 0, 0] // Keep centered
+        [50, 50, 50, 50, 50] // Offset Right (User)
     );
 
     const bubbleY = useTransform(smoothProgress,
@@ -216,18 +246,11 @@ export default function HeroScrollDemo() {
 
 
     // Typing effect
-    const [typedText, setTypedText] = useState("");
     const fullText = "Find me a dentist in Shadyside that takes Blue Cross and is open next Tuesday after 5pm.";
-
-    useEffect(() => {
-        const unsubscribe = scrollYProgress.on("change", (v) => {
-             if (v > 0.15 && typedText.length < fullText.length) {
-                if (typedText === "") setTypedText(fullText); 
-             }
-        });
-        if (typedText === "") setTypedText(fullText);
-        return () => unsubscribe();
-    }, [scrollYProgress, typedText]);
+    const typedText = useTypewriter(fullText, 15, 0, currentAct === "REQUEST" || currentAct === "SWARM" || currentAct === "RESULT"); // Keep visible after request
+    
+    const responseFullText = "Done. I scheduled you for Dr. Elena Rosas in Shadyside for Tuesday at 5:30 PM.";
+    const responseTypedText = useTypewriter(responseFullText, 10, 500, currentAct === "RESULT");
 
 
     // ─── ACT II: SWARM (Active Dispatch - Tree) ─────────────────────────────
@@ -307,6 +330,7 @@ export default function HeroScrollDemo() {
     }, [scrollYProgress]);
 
     return (
+        <>
         <motion.div 
             ref={containerRef} 
             animate={{ color: textColor }} 
@@ -428,7 +452,7 @@ export default function HeroScrollDemo() {
                 {/* ─── ACT I: REQUEST BUBBLE ──────────────────────── */}
                 <motion.div
                     style={{ opacity: bubbleOpacity, scale: bubbleScale, x: bubbleX, y: bubbleY }}
-                    className="absolute z-50 inset-x-0 mx-auto max-w-4xl px-4 flex flex-col items-center pointer-events-none"
+                    className="absolute z-50 inset-0 flex flex-col items-center justify-center pointer-events-none px-4"
                 >
                     {/* ACCURATE iMESSAGE BUBBLE */}
                     <motion.div 
@@ -447,7 +471,8 @@ export default function HeroScrollDemo() {
                                 // BoxShadow managed by motion.div container key
                             }}
                         >
-                            {typedText}
+                            {typedText.text}
+                            {!typedText.isComplete && <span className="animate-pulse">|</span>}
                         </div>
                         {/* Tail - SVG */}
                         <svg className="absolute bottom-[0px] -right-[5px] w-[20px] h-[20px]" viewBox="0 0 20 20" style={{ transform: 'rotateY(0deg)' }}>
@@ -458,7 +483,7 @@ export default function HeroScrollDemo() {
 
 
                 {/* ─── ACT II: AGENTS & ORBIT SYSTEM ────────────────────── */}
-                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transform: "translateY(0px)" }}>
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transform: "translateX(50px)" }}>
                     {/* 
                         Orbit Container
                         - Centered on screen (parent is centered flex)
@@ -659,12 +684,12 @@ export default function HeroScrollDemo() {
 
                 {/* ─── ACT III: RESULT ────────────────────────────────────── */}
                  <motion.div
-                    style={{ opacity: act4Opacity, scale: act4Scale, y: act4Y }}
-                    className="absolute inset-0 mx-auto max-w-4xl px-4 flex flex-col items-start justify-center pointer-events-none z-40"
+                    style={{ opacity: act4Opacity, scale: act4Scale, y: act4Y, x: -50 }} // Offset Left (Agent)
+                    className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-40 px-4"
                 >
                      {/* Gray Response Bubble - THEME TRANSITION */}
                      <motion.div 
-                        className="relative group w-[300px] md:w-[400px] mt-[20px]"
+                        className="relative group w-[300px] md:w-[400px]"
                         animate={{ 
                             boxShadow: `0 2px 8px rgba(0, 0, 0, ${shadowOpacity}), inset 0 1px 0px rgba(255, 255, 255, 0.05)`
                         }}
@@ -682,7 +707,8 @@ export default function HeroScrollDemo() {
                                 letterSpacing: '-0.012em',
                             }}
                         >
-                            Done. I scheduled you for <motion.span animate={{ color: grayBubbleTextColor }} transition={{ duration: 0.5 }} className="font-semibold">Dr. Elena Rosas</motion.span> in Shadyside for <motion.span animate={{ color: greenTextColor }} transition={{ duration: 0.5 }}>Tuesday at 5:30 PM</motion.span>.
+                            {responseTypedText.text}
+                            {/* Done. I scheduled you for <motion.span animate={{ color: grayBubbleTextColor }} transition={{ duration: 0.5 }} className="font-semibold">Dr. Elena Rosas</motion.span> in Shadyside for <motion.span animate={{ color: greenTextColor }} transition={{ duration: 0.5 }}>Tuesday at 5:30 PM</motion.span>. */}
                         </motion.div>
                         {/* Tail - SVG - Animate Fill */}
                         <svg className="absolute bottom-[0px] -left-[5px] w-[20px] h-[20px]" viewBox="0 0 20 20" style={{ transform: 'rotateY(180deg)' }}>
@@ -705,6 +731,7 @@ export default function HeroScrollDemo() {
                 </motion.footer>
 
             </div>
+        </motion.div>
 
             {/* ─── VALUE PROPS ────────────────────────────────────────── */}
             <div className="relative z-10 bg-white text-black">
@@ -733,14 +760,14 @@ export default function HeroScrollDemo() {
 
                 {/* CTA */}
                 <div className="max-w-[1000px] mx-auto px-6 pb-32 flex flex-col items-center text-center gap-6">
-                    <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Stop searching. Start asking.</h2>
+                    <h2 className="text-4xl md:text-5xl font-sans font-medium tracking-tight">Beyond chat. Built for action.</h2>
                     <p className="text-lg text-black/50 max-w-md">Get early access to the personal AI that actually gets things done.</p>
                     <Link href="/sign-up" className="mt-4 px-8 py-3 bg-black text-white text-sm font-medium tracking-wide rounded-full hover:bg-black/80 transition-colors">
                         Get Started
                     </Link>
                 </div>
             </div>
-        </motion.div>
+        </>
     );
 }
 
