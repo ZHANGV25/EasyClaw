@@ -16,10 +16,10 @@ type Act = "INTRO" | "REQUEST" | "SWARM" | "RESULT";
 const ScrollTracker = ({ currentAct, isLightMode }: { currentAct: Act, isLightMode: boolean }) => {
     // Match the "Lightweight" style: numeric prefix, small caps, left aligned
     const steps = [
-        { id: "INTRO", label: "PHILOSOPHY", number: "01" },
-        { id: "REQUEST", label: "INTENT", number: "02" },
-        { id: "SWARM", label: "EXECUTION", number: "03" },
-        { id: "RESULT", label: "OUTCOME", number: "04" },
+        { id: "INTRO", label: "ASK", number: "01" },
+        { id: "REQUEST", label: "DEPLOY", number: "02" },
+        { id: "SWARM", label: "DELIVER", number: "03" },
+        { id: "RESULT", label: "DONE", number: "04" },
     ];
 
     const textColor = isLightMode ? "#000000" : "#ffffff";
@@ -286,20 +286,20 @@ export default function HeroScrollDemo() {
             // Updated timings
             if (v > 0.20 && v < 0.35) {
                 setExplanation({
-                    title: "Just ask.",
-                    desc: "Describe what you need in plain English. No complex forms or rigid filters required.",
+                    title: "Say it like you'd text a friend.",
+                    desc: "No forms. No filters. Just say what you need.",
                     show: true
                 });
             } else if (v > 0.45 && v < 0.80) { // EXTENDED RANGE (35% of scroll)
                 setExplanation({
-                    title: "We do the work.",
-                    desc: "Our agents instantly search, analyze, and cross-reference data from multiple sources.",
+                    title: "Agents deploy.",
+                    desc: "Searching, cross-referencing, and verifying across 142 sources in real time.",
                     show: true
                 });
             } else if (v > 0.93) { // Show explanation WITH the theme transition
                  setExplanation({
-                    title: "Consider it done.",
-                    desc: "We handle the booking and execution, giving you back the one thing you can't buy: time.",
+                    title: "Done.",
+                    desc: "Booked, confirmed, and on your calendar. You didn't lift a finger.",
                     show: true
                 });
             } else {
@@ -398,15 +398,15 @@ export default function HeroScrollDemo() {
                         transition={{ duration: 0.5 }}
                         className="text-[10px] font-mono tracking-[0.3em] opacity-40 mb-6 uppercase"
                     >
-                        Welcome
+                        EasyClaw
                     </motion.div>
                     <motion.h1 
                         animate={{ color: textColor }} 
                         transition={{ duration: 0.5 }}
                         className="text-5xl md:text-7xl lg:text-8xl font-serif text-center tracking-tighter leading-[0.9] mix-blend-difference"
                     >
-                        THE EVOLUTION<br/>
-                        <span className="opacity-50">OF ASSISTANCE</span>
+                        ASK. WE HANDLE<br/>
+                        <span className="opacity-50">THE REST.</span>
                     </motion.h1>
                      <motion.div 
                         animate={{ 
@@ -416,7 +416,7 @@ export default function HeroScrollDemo() {
                         transition={{ duration: 0.5 }}
                         className="mt-8 px-6 py-2 border rounded-full text-[10px] tracking-widest uppercase opacity-60"
                     >
-                        Scroll to Begin
+                        Scroll
                     </motion.div>
                 </motion.div>
 
@@ -699,8 +699,8 @@ export default function HeroScrollDemo() {
                     transition={{ duration: 0.5 }}
                 >
                     <div className="max-w-[1400px] mx-auto flex items-center justify-between text-xs font-mono uppercase tracking-widest opacity-50">
-                        <span>EasyClaw Intelligence</span>
-                        <span className="hidden md:inline">Private Assistant</span>
+                        <span>EasyClaw</span>
+                        <span className="hidden md:inline"></span>
                         <span>© 2026</span>
                     </div>
                 </motion.footer>
