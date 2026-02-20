@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Reminder } from "@/types/reminders";
 import { ReminderCard } from "@/components/ReminderCard";
+import { Skeleton } from "@/components/Skeleton";
 
 export default function RemindersPage() {
   const [upcoming, setUpcoming] = useState<Reminder[]>([]);
@@ -70,9 +71,18 @@ export default function RemindersPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="py-12 text-center text-[var(--color-text-muted)]">
-            Loading reminders...
-          </div>
+           <div className="grid gap-4 md:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] space-y-3">
+                      <div className="flex justify-between">
+                          <Skeleton className="h-5 w-1/3" />
+                          <Skeleton className="h-5 w-5 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                  </div>
+              ))}
+           </div>
         ) : (
           <div className="space-y-12">
             

@@ -5,6 +5,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { AddCreditsModal } from "@/components/AddCreditsModal";
 import { apiGet } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { Skeleton } from "@/components/Skeleton";
+import { ApiError } from "@/components/ApiError";
 
 interface UserData {
   creditsBalance: number;
@@ -75,19 +77,19 @@ export default function DashboardPage() {
     return (
       <DashboardShell>
         <div className="space-y-8 animate-pulse">
-          <div className="h-8 w-32 bg-[var(--color-surface)] rounded-lg" />
+          <Skeleton className="h-8 w-32" />
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
-                <div className="h-4 w-24 bg-[var(--color-bg-secondary)] rounded mb-3" />
-                <div className="h-8 w-20 bg-[var(--color-bg-secondary)] rounded mb-4" />
-                <div className="h-9 w-full bg-[var(--color-bg-secondary)] rounded-lg" />
+                <Skeleton className="h-4 w-24 mb-3" />
+                <Skeleton className="h-8 w-20 mb-4" />
+                <Skeleton className="h-9 w-full rounded-lg" />
               </div>
             ))}
           </div>
           <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
-            <div className="h-5 w-28 bg-[var(--color-bg-secondary)] rounded mb-6" />
-            <div className="h-48 bg-[var(--color-bg-secondary)] rounded" />
+            <Skeleton className="h-5 w-28 mb-6" />
+            <Skeleton className="h-48 rounded" />
           </div>
         </div>
       </DashboardShell>
@@ -97,18 +99,11 @@ export default function DashboardPage() {
   if (error) {
     return (
       <DashboardShell>
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <div className="w-12 h-12 rounded-full bg-[var(--color-danger)]/10 flex items-center justify-center text-[var(--color-danger)] text-xl">
-            !
-          </div>
-          <p className="text-sm text-[var(--color-text-secondary)]">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-          >
-            Try Again
-          </button>
-        </div>
+        <ApiError 
+          message={error} 
+          onRetry={() => window.location.reload()} 
+          className="h-64"
+        />
       </DashboardShell>
     );
   }
@@ -183,7 +178,15 @@ export default function DashboardPage() {
             Daily Usage
           </h3>
           <div className="h-48 flex items-end gap-2 sm:gap-4">
-            {usage?.daily.map((day) => {
+            {(!usage || usage.daily.length === 0) ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-center">
+                    <div className="w-10 h-10 rounded-full bg-[var(--color-bg-secondary)] flex items-center justify-center mb-3 text-[var(--color-text-muted)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" /></svg>
+                    </div>
+                    <p className="text-sm text-[var(--color-text-secondary)] font-medium">No usage data yet</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Start chatting to see usage.</p>
+                </div>
+            ) : usage.daily.map((day) => {
               const heightPercent = maxDailyCost > 0 ? (day.costUsd / maxDailyCost) * 100 : 0;
               return (
                 <div key={day.date} className="flex-1 flex flex-col items-center gap-2 group">

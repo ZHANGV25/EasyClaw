@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { apiPost, apiGet } from "@/lib/api";
+import { ApiError } from "@/components/ApiError";
 
 export default function TelegramPage() {
   const [loading, setLoading] = useState(false);
   const [botUrl, setBotUrl] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Poll for connection status when botUrl is set/generated
   useEffect(() => {
@@ -30,6 +32,7 @@ export default function TelegramPage() {
 
   const handleConnect = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await apiPost<{ botUrl: string; connected: boolean }>("/api/telegram/connect", {});
       setBotUrl(res.botUrl);
@@ -37,6 +40,7 @@ export default function TelegramPage() {
       window.open(res.botUrl, "_blank");
     } catch (err) {
       console.error("Failed to get Telegram link", err);
+      setError("Failed to generate Telegram link. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -136,6 +140,13 @@ export default function TelegramPage() {
               >
                 {loading ? "Generating Link..." : "Generate Link"}
               </button>
+            </div>
+          )}
+
+          
+          {error && (
+            <div className="mt-6">
+              <ApiError message={error} onRetry={handleConnect} />
             </div>
           )}
         </div>

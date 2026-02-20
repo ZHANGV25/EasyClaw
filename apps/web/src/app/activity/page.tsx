@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Task } from "@/types/activity";
 import { ActivityBlock } from "@/components/ActivityBlock";
+import { Skeleton } from "@/components/Skeleton";
 import Link from "next/link";
 
 export default function ActivityPage() {
@@ -70,7 +71,19 @@ export default function ActivityPage() {
         {/* Feed */}
         <div className="space-y-4">
           {loading ? (
-            <div className="text-center py-12 text-[var(--color-text-muted)]">Loading activity...</div>
+             <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                   <div key={i} className="border border-[var(--color-border)] rounded-xl p-4 bg-[var(--color-surface)]">
+                      <div className="flex items-start justify-between">
+                         <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-6 w-64" />
+                         </div>
+                         <Skeleton className="h-4 w-16" />
+                      </div>
+                   </div>
+                ))}
+             </div>
           ) : tasks.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-[var(--color-border)] rounded-xl">
               <p className="text-lg text-[var(--color-text-secondary)] mb-4">No activity yet.</p>

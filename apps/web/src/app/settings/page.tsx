@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { Skeleton } from "@/components/Skeleton";
+import { ApiError } from "@/components/ApiError";
 
 interface UserProfile {
   name: string;
@@ -29,6 +31,7 @@ const TABS = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -53,6 +56,7 @@ export default function SettingsPage() {
         setSecrets(vaultData.secrets);
       } catch (err) {
         console.error("Failed to load settings", err);
+        setError("Failed to load settings. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -110,9 +114,36 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <DashboardShell>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
+        <div className="max-w-4xl space-y-8 animate-pulse">
+            <Skeleton className="h-8 w-32 mb-8" />
+            <div className="flex border-b border-[var(--color-border-subtle)] gap-6">
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-16" />
+            </div>
+            <div className="space-y-6">
+                <div className="space-y-4">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+                </div>
+                <div className="space-y-4">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+                </div>
+            </div>
         </div>
+      </DashboardShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardShell>
+        <ApiError
+          message={error}
+          onRetry={() => window.location.reload()}
+          className="h-96"
+        />
       </DashboardShell>
     );
   }
@@ -248,7 +279,15 @@ export default function SettingsPage() {
                 Active Secrets
               </h3>
               {secrets.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-muted)] italic">No secrets stored yet.</p>
+                <div className="text-center py-8 border-2 border-dashed border-[var(--color-border)] rounded-xl bg-[var(--color-surface)]/50">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[var(--color-surface)] mb-3">
+                        <span className="text-2xl">🔐</span>
+                    </div>
+                    <p className="text-[var(--color-text-secondary)] font-medium">No secrets stored</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-xs mx-auto">
+                        Add API keys or passwords for your assistant to use securely.
+                    </p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {secrets.map((secret) => (

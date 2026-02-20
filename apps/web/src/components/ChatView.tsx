@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { AddCreditsModal } from "@/components/AddCreditsModal";
 import { ArtifactCard } from "@/components/ArtifactCard";
 import { ArtifactPanel } from "@/components/ArtifactPanel";
+import { BrowserViewer } from "@/components/BrowserViewer";
 import { ActivityBlock } from "@/components/ActivityBlock"; // Import ActivityBlock
 import { Artifact } from "@/types/artifacts";
 
@@ -30,11 +31,25 @@ export default function ChatView({ conversationId }: ChatViewProps) {
   const [input, setInput] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openArtifact, setOpenArtifact] = useState<Artifact | null>(null);
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Track credits (mock — starts at $1.00, deducts per message)
   const [credits, setCredits] = useState(1.0);
+
+  const SUGGESTED_PROMPTS = [
+    "Book a dinner reservation",
+    "Set a reminder for tomorrow", 
+    "Find flights to Miami",
+    "Cancel my gym membership"
+  ];
+
+  const handlePromptClick = (prompt: string) => {
+    setInput(prompt);
+    // Optional: auto-submit
+    // sendMessage(prompt); 
+  };
 
   useEffect(() => {
     if (lastUsage) {
@@ -79,6 +94,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     for (const msg of messages) {
       if (msg.artifact && msg.artifact.id === artifactId) {
         setOpenArtifact(msg.artifact);
+        setIsBrowserOpen(false);
         return;
       }
     }
@@ -86,6 +102,12 @@ export default function ChatView({ conversationId }: ChatViewProps) {
 
   const handleClosePanel = () => {
     setOpenArtifact(null);
+    setIsBrowserOpen(false);
+  };
+
+  const handleOpenBrowser = () => {
+    setOpenArtifact(null);
+    setIsBrowserOpen(true);
   };
 
   return (
@@ -104,7 +126,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
       <div className="flex-1 flex min-w-0 relative">
         {/* Chat Area */}
         <div
-          className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${openArtifact ? "hidden lg:flex lg:w-[50%]" : "w-full"
+          className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${openArtifact || isBrowserOpen ? "hidden lg:flex lg:w-[50%]" : "w-full"
             }`}
         >
           {/* Waking Up Overlay */}
@@ -141,6 +163,19 @@ export default function ChatView({ conversationId }: ChatViewProps) {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Live Browser Toggle */}
+               <button
+                onClick={() => isBrowserOpen ? handleClosePanel() : handleOpenBrowser()}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200 ${
+                  isBrowserOpen 
+                    ? "bg-[var(--color-surface-hover)] border-[var(--color-border)] text-[var(--color-text-primary)]" 
+                    : "bg-transparent border-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]"
+                }`}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${isBrowserOpen ? "bg-red-500 animate-pulse" : "bg-current"}`} />
+                {isBrowserOpen ? "Live View" : "Watch Live"}
+              </button>
+
               <button
                 onClick={() => setShowAddCreditsModal(true)}
                 className="px-3 py-1 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
@@ -177,6 +212,33 @@ export default function ChatView({ conversationId }: ChatViewProps) {
               {isLoadingHistory && messages.length === 0 && (
                 <div className="flex justify-center py-8">
                   <div className="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!isLoadingHistory && messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 animate-fade-in">
+                  <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center mb-6 shadow-sm">
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-[var(--color-text-primary)]">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                     </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">What can I help with?</h2>
+                  <p className="text-sm text-[var(--color-text-secondary)] max-w-md mb-8">
+                    Type a message to get started. I can book appointments, set reminders, research anything, and more.
+                  </p>
+                  
+                  <div className="flex flex-wrap justify-center gap-2 max-w-lg">
+                    {SUGGESTED_PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt}
+                        onClick={() => handlePromptClick(prompt)}
+                        className="px-4 py-2 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-text-primary)] transition-all cursor-pointer"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -317,6 +379,28 @@ export default function ChatView({ conversationId }: ChatViewProps) {
               artifact={openArtifact}
               onClose={handleClosePanel}
             />
+          </div>
+        )}
+
+        {/* Browser Panel */}
+        {isBrowserOpen && (
+          <div className="w-full lg:w-[50%] shrink-0 animate-slide-in-right h-full border-l border-[var(--color-border-subtle)] bg-[#1e1e1e]">
+             <div className="h-full flex flex-col">
+                <div className="px-4 py-3 flex items-center justify-between border-b border-white/10 bg-[#1e1e1e]">
+                   <span className="text-sm font-medium text-white">Live Browser</span>
+                   <button 
+                     onClick={handleClosePanel}
+                     className="p-1.5 text-white/50 hover:text-white rounded-md hover:bg-white/10 transition-colors"
+                   >
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                     </svg>
+                   </button>
+                </div>
+                <div className="flex-1 overflow-hidden relative">
+                   <BrowserViewer isLive={true} />
+                </div>
+             </div>
           </div>
         )}
       </div>
