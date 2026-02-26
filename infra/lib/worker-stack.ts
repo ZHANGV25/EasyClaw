@@ -10,6 +10,8 @@ import { Construct } from 'constructs';
 export interface WorkerStackProps extends cdk.StackProps {
   databaseUrl: string;
   s3Bucket: string;
+  /** Anthropic API key for OpenClaw LLM calls (if not using Bedrock) */
+  anthropicApiKey?: string;
 }
 
 export class WorkerStack extends cdk.Stack {
@@ -36,7 +38,7 @@ export class WorkerStack extends cdk.Stack {
       ],
     });
 
-    // Task Role (for worker to access S3, CloudWatch)
+    // Task Role (for worker to access S3, CloudWatch, Bedrock)
     const taskRole = new iam.Role(this, 'TaskRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
     });
@@ -59,26 +61,38 @@ export class WorkerStack extends cdk.Stack {
       resources: ['*'],
     }));
 
+    // Grant Bedrock access (for OpenClaw to call Claude)
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:InvokeModelWithResponseStream',
+      ],
+      resources: [
+        `arn:aws:bedrock:*::foundation-model/*`,
+        `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/*`,
+      ],
+    }));
+
     // CloudWatch Log Group
     const logGroup = new logs.LogGroup(this, 'WorkerLogGroup', {
       logGroupName: '/ecs/easyclaw-workers',
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // Task Definition
+    // Task Definition — sized for OpenClaw (browser + LLM agent)
     const taskDefinition = new ecs.FargateTaskDefinition(this, 'WorkerTaskDef', {
       family: 'easyclaw-worker',
-      cpu: 1024,  // 1 vCPU
-      memoryLimitMiB: 2048,  // 2 GB
+      cpu: 4096,  // 4 vCPU (OpenClaw + browser needs more)
+      memoryLimitMiB: 8192,  // 8 GB
       executionRole,
       taskRole,
     });
 
-    // Container Definition
+    // Container Definition — uses OpenClaw Dockerfile
     const container = taskDefinition.addContainer('worker', {
       image: ecs.ContainerImage.fromAsset('../workers', {
-        file: 'Dockerfile',
+        file: 'Dockerfile.openclaw',
       }),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'worker',
@@ -86,12 +100,14 @@ export class WorkerStack extends cdk.Stack {
       }),
       environment: {
         DATABASE_URL: props.databaseUrl,
-        // AWS_REGION is automatically provided by AWS runtime
         S3_BUCKET: props.s3Bucket,
         POLL_INTERVAL_MS: '5000',
+        OPENCLAW_GATEWAY_URL: 'ws://127.0.0.1:18789',
+        OPENCLAW_TASK_TIMEOUT_MS: '300000',
+        ...(props.anthropicApiKey ? { ANTHROPIC_API_KEY: props.anthropicApiKey } : {}),
       },
       healthCheck: {
-        command: ['CMD-SHELL', 'node -e "process.exit(0)"'],
+        command: ['CMD-SHELL', 'node -e "const ws=require(\'ws\');const c=new ws(\'ws://127.0.0.1:18789\');c.on(\'open\',()=>{c.close();process.exit(0)});c.on(\'error\',()=>process.exit(1));setTimeout(()=>process.exit(1),5000)"'],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(10),
         retries: 3,
@@ -99,15 +115,15 @@ export class WorkerStack extends cdk.Stack {
       },
     });
 
-    // ECS Service
+    // ECS Service — warm pool with min 2 instances
     const service = new ecs.FargateService(this, 'WorkerService', {
       cluster,
       taskDefinition,
       serviceName: 'easyclaw-workers',
-      desiredCount: 1,  // Start with 1 worker
+      desiredCount: 2,  // Warm pool: always 2 ready
       minHealthyPercent: 100,
       maxHealthyPercent: 200,
-      enableExecuteCommand: true,  // For debugging
+      enableExecuteCommand: true,
     });
 
     // Custom CloudWatch Metric for Queue Depth
@@ -118,9 +134,9 @@ export class WorkerStack extends cdk.Stack {
       period: cdk.Duration.minutes(1),
     });
 
-    // Auto Scaling
+    // Auto Scaling — 2 to 50, scale in after 5 min idle (never below 2)
     const scaling = service.autoScaleTaskCount({
-      minCapacity: 1,
+      minCapacity: 2,
       maxCapacity: 50,
     });
 
@@ -128,8 +144,8 @@ export class WorkerStack extends cdk.Stack {
     scaling.scaleToTrackCustomMetric('QueueDepthTargetTracking', {
       metric: queueDepthMetric,
       targetValue: 5,  // Target: 5 pending jobs per worker
-      scaleInCooldown: cdk.Duration.minutes(5),   // Wait 5 min before scaling down
-      scaleOutCooldown: cdk.Duration.seconds(60),  // Wait 60s before scaling up again
+      scaleInCooldown: cdk.Duration.minutes(5),
+      scaleOutCooldown: cdk.Duration.seconds(60),
     });
 
     // CloudWatch Dashboard

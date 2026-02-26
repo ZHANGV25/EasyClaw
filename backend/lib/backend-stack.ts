@@ -33,20 +33,20 @@ export class BackendStack extends cdk.Stack {
 
     const db = new rds.DatabaseInstance(this, 'EasyClawDB', {
       engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_16_3 }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO), // Free tier eligible-ish
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [dbSecurityGroup],
       databaseName: 'easyclaw',
-      backupRetention: cdk.Duration.days(1),
-      deleteAutomatedBackups: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // NOTE: For dev only, change for prod
+      backupRetention: cdk.Duration.days(7),
+      deleteAutomatedBackups: false,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      deletionProtection: true,
     });
 
     // 3. Storage (S3)
     const userDataBucket = new s3.Bucket(this, 'UserDataBucket', {
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Dev only
-      autoDeleteObjects: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
       cors: [{
         allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT],
         allowedOrigins: ['*'],
@@ -55,8 +55,7 @@ export class BackendStack extends cdk.Stack {
     });
 
     const stateSnapshotBucket = new s3.Bucket(this, 'StateSnapshotBucket', {
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // 4. Lambdas (ECS cluster for workers is in WorkerStack)
@@ -77,6 +76,10 @@ export class BackendStack extends cdk.Stack {
         DB_HOST: db.instanceEndpoint.hostname,
         STATE_BUCKET_NAME: stateSnapshotBucket.bucketName,
         USER_DATA_BUCKET_NAME: userDataBucket.bucketName,
+        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || '',
+        CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || '',
+        STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
+        STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
       },
       bundling: {
         externalModules: ['pg-native'],
@@ -170,9 +173,17 @@ export class BackendStack extends cdk.Stack {
       handler: 'handler',
     });
     db.secret?.grantRead(conversationsLambda);
-    db.secret?.grantWrite(conversationsLambda); // Needed for INSERT/UPDATE/DELETE
+    db.secret?.grantWrite(conversationsLambda);
 
-    // Job Queue API Lambdas (simpler, for worker pool system)
+    // Stripe handler
+    const stripeLambda = new nodejs.NodejsFunction(this, 'StripeLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/stripe.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(stripeLambda);
+
+    // Job Queue API Lambdas — use Clerk auth, same env as common lambdas
     const jobLambdaConfig: nodejs.NodejsFunctionProps = {
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.seconds(10),
@@ -180,6 +191,7 @@ export class BackendStack extends cdk.Stack {
       environment: {
         DATABASE_URL: props?.databaseUrl || '',
         NODE_ENV: 'production',
+        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || '',
       },
       bundling: {
         forceDockerBundling: false,
@@ -222,7 +234,6 @@ export class BackendStack extends cdk.Stack {
           'Authorization',
           'X-Api-Key',
           'X-Amz-Security-Token',
-          'X-User-Id',
         ],
       },
     });
@@ -246,10 +257,14 @@ export class BackendStack extends cdk.Stack {
     const usageResource = apiRoot.addResource('usage');
     usageResource.addMethod('GET', new apigateway.LambdaIntegration(usageLambda));
 
-    // GET /api/credits/history
+    // /api/credits
     const creditsResource = apiRoot.addResource('credits');
+    // GET /api/credits/history
     const creditsHistory = creditsResource.addResource('history');
     creditsHistory.addMethod('GET', new apigateway.LambdaIntegration(creditsLambda));
+    // POST /api/credits/purchase
+    const creditsPurchase = creditsResource.addResource('purchase');
+    creditsPurchase.addMethod('POST', new apigateway.LambdaIntegration(stripeLambda));
 
     // /api/conversations (GET, POST, PATCH, DELETE)
     const conversationsResource = apiRoot.addResource('conversations');
@@ -258,7 +273,12 @@ export class BackendStack extends cdk.Stack {
     conversationsResource.addMethod('PATCH', new apigateway.LambdaIntegration(conversationsLambda));
     conversationsResource.addMethod('DELETE', new apigateway.LambdaIntegration(conversationsLambda));
 
-    // Internal API (Protected - TODO: Add Auth)
+    // Stripe webhook (no auth — Stripe signature verification instead)
+    const webhooksResource = apiRoot.addResource('webhooks');
+    const stripeWebhook = webhooksResource.addResource('stripe');
+    stripeWebhook.addMethod('POST', new apigateway.LambdaIntegration(stripeLambda));
+
+    // Internal API (worker-to-backend communication, secured by VPC/IAM)
     const internal = apiRoot.addResource('internal');
     const internalJobs = internal.addResource('jobs');
 
@@ -282,14 +302,12 @@ export class BackendStack extends cdk.Stack {
     jobsResource.addMethod(
       'POST',
       new apigateway.LambdaIntegration(createJobFn, { proxy: true }),
-      { apiKeyRequired: false } // TODO: Add Clerk authorizer
     );
 
     // GET /jobs - List jobs
     jobsResource.addMethod(
       'GET',
       new apigateway.LambdaIntegration(listJobsFn, { proxy: true }),
-      { apiKeyRequired: false }
     );
 
     // /jobs/{jobId} resource
@@ -299,7 +317,6 @@ export class BackendStack extends cdk.Stack {
     jobResource.addMethod(
       'GET',
       new apigateway.LambdaIntegration(getJobFn, { proxy: true }),
-      { apiKeyRequired: false }
     );
 
     // 7. Outputs

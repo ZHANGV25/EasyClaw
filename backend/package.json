@@ -10,14 +10,17 @@
     "@aws-sdk/client-s3": "^3.709.0",
     "@aws-sdk/client-secrets-manager": "^3.709.0",
     "@aws-sdk/s3-request-presigner": "^3.709.0",
+    "@clerk/backend": "^2.32.0",
     "@langchain/aws": "^0.1.7",
     "@langchain/core": "^0.3.38",
     "aws-cdk-lib": "^2.173.2",
     "constructs": "^10.4.2",
     "pg": "^8.13.1",
+    "stripe": "^17.5.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.160",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "esbuild": "^0.27.3",

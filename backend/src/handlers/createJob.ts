@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { Client } from 'pg';
+import { requireAuth, unauthorizedResponse, AuthError } from '../util/auth';
 
 interface CreateJobRequest {
   type: string;
@@ -13,6 +14,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   });
 
   try {
+    const userId = await requireAuth(event);
+
     // Parse request body
     if (!event.body) {
       return {
@@ -37,10 +40,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         body: JSON.stringify({ error: 'Missing required fields: type, payload' }),
       };
     }
-
-    // Get user ID from Clerk auth (via authorizer or JWT)
-    // For now, extract from headers or path parameters
-    const userId = event.headers['x-user-id'] || event.requestContext.authorizer?.userId || 'test-user-id';
 
     // Connect to database
     await client.connect();
@@ -70,6 +69,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }),
     };
   } catch (error: any) {
+    if (error instanceof AuthError) return unauthorizedResponse(error.message);
     console.error('[CreateJob] Error:', error);
 
     return {

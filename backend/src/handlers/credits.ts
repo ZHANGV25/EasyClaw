@@ -1,9 +1,10 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { query } from '../util/db';
+import { requireAuth, unauthorizedResponse, AuthError } from '../util/auth';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
-        const userId = "11111111-1111-1111-1111-111111111111"; // TODO: Auth
+        const userId = await requireAuth(event);
 
         const txRes = await query(
             `SELECT * FROM transactions 
@@ -32,6 +33,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             body: JSON.stringify({ transactions }),
         };
     } catch (err: any) {
+        if (err instanceof AuthError) return unauthorizedResponse(err.message);
         console.error("Handler Error:", err);
         return {
             statusCode: 500,

@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { api, apiGet, apiPost, apiDelete } from "@/lib/api";
+import { api, apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 export interface Conversation {
   id: string;
@@ -50,17 +51,19 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const router = useRouter();
+  const getToken = useAuthToken();
 
   const refreshConversations = useCallback(async () => {
     try {
-      const data = await apiGet<{ conversations: Conversation[] }>("/api/conversations");
+      const token = await getToken();
+      const data = await apiGet<{ conversations: Conversation[] }>("/api/conversations", token);
       setConversations(data.conversations || []);
     } catch (err) {
       console.error("Failed to load conversations", err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [getToken]);
 
   // Load conversations on mount
   useEffect(() => {
@@ -69,51 +72,38 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   const createConversation = useCallback(
     async (title?: string) => {
+      const token = await getToken();
       const conv = await apiPost<Conversation>("/api/conversations", {
         title: title || "New Chat",
-      });
+      }, token);
       setConversations((prev) => [conv, ...prev]);
       setActiveId(conv.id);
       router.push(`/chat/${conv.id}`);
       return conv;
     },
-    [router]
+    [router, getToken]
   );
 
   const deleteConversation = useCallback(
     async (id: string) => {
-      await apiDelete(`/api/conversations?id=${id}`);
+      const token = await getToken();
+      await apiDelete(`/api/conversations?id=${id}`, token);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (activeId === id) {
-        // Navigate to /chat (new chat) if the active conversation is deleted
         setActiveId(null);
         router.push("/chat");
       }
     },
-    [activeId, router]
+    [activeId, router, getToken]
   );
 
   const renameConversation = useCallback(async (id: string, title: string) => {
-    await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "")}/api/conversations?id=${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title })
-    });
-    // Or add apiPatch to api.ts. For now, native fetch is fine or I can add apiPatch.
-    // Let's use apiPost/apiGet/apiDelete as existing. I will use native fetch for PATCH or add apiPatch if I want consistency.
-    // Let's add apiPatch to api.ts quickly or just use fetch here. 
-    // Wait, I should probably stick to consistency. I checked api.ts and it has apiGet, apiPost, apiDelete.
-    // I can just use the generic api function: api("/api/conversations...", { method: "PATCH", json: { title } })
-
-    await api(`/api/conversations?id=${id}`, {
-      method: "PATCH",
-      json: { title }
-    });
-
+    const token = await getToken();
+    await apiPatch(`/api/conversations?id=${id}`, { title }, token);
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, title } : c))
     );
-  }, []);
+  }, [getToken]);
 
   return (
     <ConversationsContext.Provider

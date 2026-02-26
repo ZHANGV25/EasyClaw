@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { apiPost } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 type AddCreditsModalProps = {
   isOpen: boolean;
@@ -10,18 +11,18 @@ type AddCreditsModalProps = {
 
 export function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProps) {
   const [loading, setLoading] = useState<number | null>(null);
+  const getToken = useAuthToken();
 
   if (!isOpen) return null;
 
   const handlePurchase = async (amount: number) => {
     setLoading(amount);
     try {
-      const res = await apiPost<{ checkoutUrl: string }>("/api/credits/purchase", { amountUsd: amount });
-      // Simulate redirect
+      const token = await getToken();
+      const res = await apiPost<{ checkoutUrl: string }>("/api/credits/purchase", { amountUsd: amount }, token);
       window.location.href = res.checkoutUrl;
     } catch (err) {
       console.error("Purchase failed", err);
-      // Reset loading if failed
       setLoading(null);
     }
   };
@@ -76,7 +77,7 @@ export function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProps) {
             </button>
           ))}
         </div>
-        
+
         <p className="text-xs text-center text-[var(--color-text-muted)] mt-6">
           Payments are processed securely via Stripe.
         </p>

@@ -1,9 +1,11 @@
+export type JobType = 'CHAT' | 'COMPUTER_USE' | 'RESEARCH' | 'ECHO';
+
 export interface Job {
   id: string;
   user_id: string;
   conversation_id: string | null;
   status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-  type: string;
+  type: JobType;
   input_payload: Record<string, any>;
   result_payload?: Record<string, any>;
   worker_id?: string;

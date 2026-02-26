@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { Client } from 'pg';
+import { requireAuth, unauthorizedResponse, AuthError } from '../util/auth';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const client = new Client({
@@ -7,8 +8,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   });
 
   try {
-    // Get user ID from auth
-    const userId = event.headers['x-user-id'] || event.requestContext.authorizer?.userId || 'test-user-id';
+    const userId = await requireAuth(event);
 
     // Get limit from query parameters
     const limit = parseInt(event.queryStringParameters?.limit || '20');
@@ -38,6 +38,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }),
     };
   } catch (error: any) {
+    if (error instanceof AuthError) return unauthorizedResponse(error.message);
     console.error('[ListJobs] Error:', error);
 
     return {

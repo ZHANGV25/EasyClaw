@@ -98,6 +98,11 @@ export class JobExecutor {
     switch (job.type) {
       case 'CHAT':
         return this.executeChatTask(job, context);
+      case 'COMPUTER_USE':
+        // COMPUTER_USE jobs are handled by the OpenClaw adapter (openclaw-adapter.ts).
+        // If they reach this executor, it means we're running without OpenClaw —
+        // fall back to a chat-based response explaining we can't perform the action.
+        return this.executeComputerUseFallback(job, context);
       case 'RESEARCH':
         return this.executeResearchTask(job, context);
       case 'ECHO':
@@ -235,6 +240,23 @@ Provide a helpful, complete response.`;
     } finally {
       await browser.close();
     }
+  }
+
+  private async executeComputerUseFallback(job: Job, context: JobContext): Promise<JobResult> {
+    console.log(`[Job ${job.id}] COMPUTER_USE fallback (no OpenClaw adapter)`);
+
+    const instruction = job.input_payload.instruction || job.input_payload.taskDescription || 'Unknown task';
+    const reply = `Computer-use task "${instruction}" requires the OpenClaw adapter which is not available on this worker. The task has been marked as failed. Please ensure the OpenClaw-enabled workers are running.`;
+
+    if (context.conversation) {
+      await this.db.createMessage(context.conversation.id, 'assistant', reply);
+    }
+
+    return {
+      success: false,
+      error: 'OpenClaw adapter not available on this worker',
+      output: { message: reply, timestamp: new Date().toISOString() },
+    };
   }
 
   private async executeEchoTask(job: Job): Promise<JobResult> {

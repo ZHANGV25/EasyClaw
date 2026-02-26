@@ -36,6 +36,7 @@ const workerStack = new WorkerStack(app, 'EasyClaw-Worker-Stack', {
   description: 'EasyClaw Worker Pool with Auto-Scaling',
   databaseUrl,
   s3Bucket,
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 app.synth();

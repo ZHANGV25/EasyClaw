@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { Client } from 'pg';
+import { requireAuth, unauthorizedResponse, AuthError } from '../util/auth';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const client = new Client({
@@ -7,6 +8,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   });
 
   try {
+    const userId = await requireAuth(event);
+
     // Get job ID from path parameters
     const jobId = event.pathParameters?.jobId;
 
@@ -20,9 +23,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         body: JSON.stringify({ error: 'Missing jobId parameter' }),
       };
     }
-
-    // Get user ID from auth
-    const userId = event.headers['x-user-id'] || event.requestContext.authorizer?.userId || 'test-user-id';
 
     // Connect to database
     await client.connect();
@@ -57,6 +57,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       body: JSON.stringify(job),
     };
   } catch (error: any) {
+    if (error instanceof AuthError) return unauthorizedResponse(error.message);
     console.error('[GetJob] Error:', error);
 
     return {

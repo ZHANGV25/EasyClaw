@@ -30,6 +30,11 @@ Thumbs.db
 # drizzle
 packages/db/drizzle/
 
+# CDK
+infra/cdk.out/
+cdk-outputs.json
+
 # misc
 *.tsbuildinfo
 next-env.d.ts
+*.lock

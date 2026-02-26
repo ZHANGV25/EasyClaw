@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useConversations } from "@/contexts/ConversationsContext";
+import { useAuthToken } from "@/hooks/useAuthToken";
+import { BASE_URL } from "@/lib/api";
 import { Artifact } from "@/types/artifacts";
 import { AgentStep } from "@/types/activity";
 
@@ -65,6 +67,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
   const loadedConvRef = useRef<string | null>(null);
   const router = useRouter();
   const { refreshConversations } = useConversations();
+  const getToken = useAuthToken();
 
   // Load conversation messages when conversationId changes
   useEffect(() => {
@@ -84,8 +87,13 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
       setIsLoadingHistory(true);
       setMessages([]);
       try {
+        const token = await getToken();
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const res = await fetch(
-          `/api/conversations/${conversationId}/messages?limit=50`
+          `${BASE_URL}/api/conversations/${conversationId}/messages?limit=50`,
+          { headers }
         );
         if (!res.ok) throw new Error("Failed to load messages");
         const data: HistoryResponse = await res.json();
@@ -112,7 +120,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
     }
 
     loadMessages();
-  }, [conversationId]);
+  }, [conversationId, getToken]);
 
   // Load more (older) messages
   const loadMoreHistory = useCallback(async () => {
@@ -123,8 +131,13 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
       const firstMessage = messages[0];
       if (!firstMessage) return;
 
+      const token = await getToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(
-        `/api/conversations/${conversationId}/messages?limit=20&before=${firstMessage.id}`
+        `${BASE_URL}/api/conversations/${conversationId}/messages?limit=20&before=${firstMessage.id}`,
+        { headers }
       );
       if (!res.ok) throw new Error("Failed to load more");
       const data: HistoryResponse = await res.json();
@@ -144,7 +157,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [messages, isLoadingHistory, hasMoreHistory, conversationId]);
+  }, [messages, isLoadingHistory, hasMoreHistory, conversationId, getToken]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -180,12 +193,15 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
       const fetchLoop = async () => {
         try {
-          // Use the real backend API URL from env
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || '';
+          const token = await getToken();
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
 
-          const res = await fetch(`${apiUrl}/api/chat`, {
+          const res = await fetch(`${BASE_URL}/api/chat`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               message: content.trim(),
               conversationId: conversationId || undefined,
@@ -238,7 +254,6 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
           if (data.status === "QUEUED") {
             // If a job was started, we could optionally poll for updates here
-            // For now, just show the confirmation message
           }
 
           // If this was a new conversation, the backend should return the ID
@@ -271,7 +286,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
       fetchLoop();
     },
-    [conversationId, router, refreshConversations]
+    [conversationId, router, refreshConversations, getToken]
   );
 
   return {

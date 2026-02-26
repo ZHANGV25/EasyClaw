@@ -1,27 +1,41 @@
 /**
- * API client wrapper.
- * When the real backend is ready, swap BASE_URL to the production API.
- * Auth tokens will be attached automatically via Clerk's middleware.
+ * API client wrapper — client-safe, no server imports.
+ *
+ * Usage:
+ *   - Server components: use serverApi.ts (auto-injects Clerk token)
+ *   - Client components: call api() directly; pass authToken if needed
+ *
+ * When NEXT_PUBLIC_API_URL is empty, requests hit local Next.js mock routes.
+ * When NEXT_PUBLIC_API_URL is set, requests go to the AWS backend.
  */
 
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+export const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+
+/** True when the frontend is configured to talk to the real AWS backend */
+export const IS_EXTERNAL = BASE_URL.length > 0;
 
 interface FetchOptions extends RequestInit {
   json?: unknown;
+  /** Optional Bearer token to forward to the real backend */
+  authToken?: string;
 }
 
 export async function api<T = unknown>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const { json, headers: customHeaders, ...rest } = options;
+  const { json, authToken, headers: customHeaders, ...rest } = options;
 
-  const headers: HeadersInit = {
-    ...customHeaders,
+  const headers: Record<string, string> = {
+    ...(customHeaders as Record<string, string>),
   };
 
   if (json) {
-    (headers as Record<string, string>)["Content-Type"] = "application/json";
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
@@ -52,8 +66,12 @@ export class ApiError extends Error {
   }
 }
 
-// Convenience methods
-export const apiGet = <T>(path: string) => api<T>(path, { method: "GET" });
-export const apiPost = <T>(path: string, body: unknown) =>
-  api<T>(path, { method: "POST", json: body });
-export const apiDelete = <T>(path: string) => api<T>(path, { method: "DELETE" });
+// Convenience methods (no auth — use serverApi.ts for server-side auth)
+export const apiGet = <T>(path: string, authToken?: string) =>
+  api<T>(path, { method: "GET", authToken });
+export const apiPost = <T>(path: string, body: unknown, authToken?: string) =>
+  api<T>(path, { method: "POST", json: body, authToken });
+export const apiPatch = <T>(path: string, body: unknown, authToken?: string) =>
+  api<T>(path, { method: "PATCH", json: body, authToken });
+export const apiDelete = <T>(path: string, authToken?: string) =>
+  api<T>(path, { method: "DELETE", authToken });

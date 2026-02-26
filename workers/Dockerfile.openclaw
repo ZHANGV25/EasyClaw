@@ -1,0 +1,69 @@
+# =============================================================
+# EasyClaw Worker with OpenClaw + Sidecar Adapter
+# =============================================================
+# Two processes run inside this container:
+#   1. OpenClaw (AI agent for computer control) — port 8080 / ws
+#   2. Sidecar adapter (polls job queue, forwards to OpenClaw)
+# =============================================================
+
+# ── Stage 1: Build the sidecar ──────────────────────────────
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src/ ./src/
+
+RUN npm run build
+
+# ── Stage 2: Production image ───────────────────────────────
+# coollabsio/openclaw — community-maintained, auto-updated Docker image
+# Includes OpenClaw runtime, browser (Playwright/Chromium), Node 22+
+# Published for amd64 and arm64
+# Source: https://github.com/coollabsio/openclaw
+FROM coollabsio/openclaw:latest
+
+WORKDIR /sidecar
+
+# Install production deps for the sidecar
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy built sidecar
+COPY --from=builder /app/dist ./dist
+
+# Create workspace directory
+RUN mkdir -p /tmp/workspace
+
+# ── Startup script ──────────────────────────────────────────
+# Start OpenClaw in background, then run the adapter
+RUN printf '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "[entrypoint] Starting OpenClaw gateway..."\n\
+cd /data && openclaw gateway --port 18789 &\n\
+OPENCLAW_PID=$!\n\
+\n\
+echo "[entrypoint] Starting EasyClaw adapter..."\n\
+cd /sidecar && node dist/openclaw-adapter.js &\n\
+ADAPTER_PID=$!\n\
+\n\
+# Wait for either to exit — if one crashes, stop the other\n\
+wait -n $OPENCLAW_PID $ADAPTER_PID\n\
+EXIT_CODE=$?\n\
+\n\
+echo "[entrypoint] Process exited with code $EXIT_CODE, shutting down..."\n\
+kill $OPENCLAW_PID $ADAPTER_PID 2>/dev/null || true\n\
+wait\n\
+exit $EXIT_CODE\n' > /start.sh && chmod +x /start.sh
+
+# Health check — verify OpenClaw gateway is responding
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -sf http://127.0.0.1:18789/ || exit 1
+
+ENV OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
+
+CMD ["/start.sh"]

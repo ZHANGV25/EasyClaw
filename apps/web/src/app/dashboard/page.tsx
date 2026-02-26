@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { AddCreditsModal } from "@/components/AddCreditsModal";
 import { apiGet } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 import { useToast } from "@/components/Toast";
 import { Skeleton } from "@/components/Skeleton";
 import { ApiError } from "@/components/ApiError";
@@ -40,14 +41,16 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAddCredits, setShowAddCredits] = useState(false);
   const { addToast } = useToast();
+  const getToken = useAuthToken();
 
   useEffect(() => {
     async function fetchData() {
       try {
+        const token = await getToken();
         const [userData, usageData, historyData] = await Promise.all([
-          apiGet<UserData>("/api/user"),
-          apiGet<UsageData>("/api/usage"),
-          apiGet<{ transactions: Transaction[] }>("/api/credits/history"),
+          apiGet<UserData>("/api/user", token),
+          apiGet<UsageData>("/api/usage", token),
+          apiGet<{ transactions: Transaction[] }>("/api/credits/history", token),
         ]);
         setUser(userData);
         setUsage(usageData);
@@ -61,7 +64,7 @@ export default function DashboardPage() {
       }
     }
     fetchData();
-  }, [addToast]);
+  }, [addToast, getToken]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
