@@ -43,7 +43,7 @@
 - [x] Deploy `EasyClaw-Worker-Stack` (ECS Fargate, auto-scaling) — deploying
 - [x] Set `NEXT_PUBLIC_API_URL` to API Gateway URL
 - [x] Configure Stripe webhook secret
-- [ ] **Connect GitHub repo to Amplify** (requires OAuth via AWS Console → Amplify → select repo)
+- [x] Connect CodeCommit repo to Amplify (app `d24tfvdrfnje2s`, auto-builds on push)
 - [ ] Redeploy backend with `STRIPE_WEBHOOK_SECRET` env var
 
 ---
@@ -118,7 +118,7 @@
 | Resource | URL |
 |----------|-----|
 | API Gateway | `https://v2hk7dxl4g.execute-api.us-east-1.amazonaws.com/prod/` |
-| Frontend (Amplify) | `https://main.d2vfp0i0u5ab8q.amplifyapp.com` |
+| Frontend (Amplify) | `https://main.d24tfvdrfnje2s.amplifyapp.com` |
 | Stripe Dashboard | `https://dashboard.stripe.com/test/webhooks` |
 | CloudWatch Workers | `https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=EasyClaw-Workers` |
 
