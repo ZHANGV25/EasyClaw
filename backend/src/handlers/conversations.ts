@@ -8,26 +8,24 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         const method = event.httpMethod;
 
         if (method === 'GET') {
-            // List conversations
+            // List conversations with last message via LATERAL JOIN (single query)
             const res = await query(
-                `SELECT * FROM conversations WHERE user_id = $1 ORDER BY updated_at DESC`,
+                `SELECT c.id, c.title, c.updated_at, c.created_at, lm.content AS last_message
+                 FROM conversations c
+                 LEFT JOIN LATERAL (
+                     SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1
+                 ) lm ON true
+                 WHERE c.user_id = $1
+                 ORDER BY c.updated_at DESC`,
                 [userId]
             );
 
-            // Fetch last message for each conversation to match frontend expectation
-            // This is N+1, but fine for now. Better to do a JOIN or lateral join.
-            const conversations = await Promise.all(res.rows.map(async (conv: any) => {
-                const msgRes = await query(
-                    `SELECT content FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 1`,
-                    [conv.id]
-                );
-                return {
-                    id: conv.id,
-                    title: conv.title,
-                    lastMessage: msgRes.rows[0]?.content || "No messages yet",
-                    updatedAt: conv.updated_at,
-                    createdAt: conv.created_at
-                };
+            const conversations = res.rows.map((conv: any) => ({
+                id: conv.id,
+                title: conv.title,
+                lastMessage: conv.last_message || "No messages yet",
+                updatedAt: conv.updated_at,
+                createdAt: conv.created_at,
             }));
 
             return {

@@ -94,25 +94,27 @@
 - [x] Add GET/DELETE to `/api/telegram/connect` for status checking and disconnecting
 - [ ] Set TELEGRAM_BOT_TOKEN env var and register webhook URL with Telegram API
 
-### Phase 7: Infrastructure Hardening [P2 — before public launch]
-- [ ] Upgrade RDS to `t4g.small`, enable Multi-AZ
-- [ ] Add RDS Proxy for Lambda connection pooling
-- [ ] Add WAF on API Gateway (rate limiting)
-- [ ] Enable API Gateway throttling
+### Phase 7: Infrastructure Hardening [PARTIAL]
+- [ ] Upgrade RDS to `t4g.small`, enable Multi-AZ (cost decision — do before launch)
+- [ ] Add RDS Proxy for Lambda connection pooling (cost decision)
+- [ ] Add WAF on API Gateway (cost decision)
+- [x] Enable API Gateway throttling (100 rps, burst 50)
 - [ ] Store all secrets in AWS Secrets Manager (not env vars)
-- [ ] Fix N+1 query in `conversations.ts` (use JOIN)
+- [x] Fix N+1 query in `conversations.ts` (LATERAL JOIN)
+- [x] Add CloudWatch alarms (5xx rate, Chat Lambda errors, p99 duration)
+- [x] Add SNS alarm topic for notifications
 
 ### Phase 8: Testing & Polish [P2]
 - [ ] E2E smoke test: signup → chat → see response
 - [ ] E2E smoke test: Stripe checkout → credits appear
 - [ ] E2E smoke test: Telegram message → response
 - [ ] Error handling pass (proper HTTP codes, meaningful messages)
-- [ ] Add CloudWatch alarms (Lambda errors, 5xx rate, job failures)
+- [x] Add CloudWatch alarms (Lambda errors, 5xx rate, job failures)
 
-### Phase 9: CI/CD [P3]
-- [ ] GitHub Actions: type-check + lint + build on push to `main`
+### Phase 9: CI/CD [PARTIAL]
+- [x] GitHub Actions: type-check + lint + build on push to `main`
 - [ ] Auto-deploy backend via `cdk deploy` in CI
-- [ ] Auto-deploy frontend via Amplify GitHub integration
+- [x] Auto-deploy frontend via Amplify GitHub integration (already connected)
 - [ ] Preview environments on PR (stretch)
 
 ---

@@ -7,6 +7,8 @@ import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as sns from 'aws-cdk-lib/aws-sns';
 import * as path from 'path';
 
 export interface BackendStackProps extends cdk.StackProps {
@@ -450,6 +452,53 @@ export class BackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ListJobsFunctionArn', {
       value: listJobsFn.functionArn,
       description: 'List Jobs Lambda ARN',
+    });
+
+    // 8. API Gateway Throttling
+    const stage = this.api.deploymentStage;
+    const cfnStage = stage.node.defaultChild as apigateway.CfnStage;
+    cfnStage.addPropertyOverride('MethodSettings', [{
+      HttpMethod: '*',
+      ResourcePath: '/*',
+      ThrottlingBurstLimit: 50,
+      ThrottlingRateLimit: 100,
+    }]);
+
+    // 9. CloudWatch Alarms
+    const alarmTopic = new sns.Topic(this, 'AlarmTopic', {
+      displayName: 'EasyClaw Alarms',
+    });
+
+    // 5xx error rate alarm
+    new cloudwatch.Alarm(this, 'Api5xxAlarm', {
+      metric: this.api.metricServerError({ period: cdk.Duration.minutes(5) }),
+      threshold: 5,
+      evaluationPeriods: 2,
+      alarmDescription: 'API Gateway 5xx errors exceeded threshold',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction({ bind: () => ({ alarmActionArn: alarmTopic.topicArn }) });
+
+    // Chat Lambda errors
+    new cloudwatch.Alarm(this, 'ChatLambdaErrorAlarm', {
+      metric: chatLambda.metricErrors({ period: cdk.Duration.minutes(5) }),
+      threshold: 3,
+      evaluationPeriods: 2,
+      alarmDescription: 'Chat Lambda errors exceeded threshold',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction({ bind: () => ({ alarmActionArn: alarmTopic.topicArn }) });
+
+    // Chat Lambda duration (cold starts / timeouts)
+    new cloudwatch.Alarm(this, 'ChatLambdaDurationAlarm', {
+      metric: chatLambda.metricDuration({ period: cdk.Duration.minutes(5), statistic: 'p99' }),
+      threshold: 25000, // 25 seconds (Lambda timeout is 300s)
+      evaluationPeriods: 3,
+      alarmDescription: 'Chat Lambda p99 duration is too high',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction({ bind: () => ({ alarmActionArn: alarmTopic.topicArn }) });
+
+    new cdk.CfnOutput(this, 'AlarmTopicArn', {
+      value: alarmTopic.topicArn,
+      description: 'SNS Topic for CloudWatch Alarms — subscribe your email',
     });
   }
 }
