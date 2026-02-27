@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY, -- Matches Clerk ID (passed from frontend) or generated
+    id TEXT PRIMARY KEY, -- Clerk user ID (e.g. "user_xxx")
     email VARCHAR(255) NOT NULL,
     credits_balance NUMERIC(10, 4) DEFAULT 0.0000,
     stripe_customer_id VARCHAR(255),
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- 2. Conversations Table
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) DEFAULT 'New Conversation',
     state JSONB DEFAULT '{}', -- Summary context
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS messages (
 -- 4. Jobs Table (The Polling Queue)
 CREATE TABLE IF NOT EXISTS jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL, -- Optional link
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED')),
     type VARCHAR(50) NOT NULL DEFAULT 'CHAT',
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS state_snapshots (
 -- 6. Transactions Table (Credits History)
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount NUMERIC(10, 4) NOT NULL, -- Positive for purchase, negative for usage
     type VARCHAR(50) NOT NULL CHECK (type IN ('PURCHASE', 'USAGE', 'FREE_TIER', 'REFUND')),
     description TEXT,
@@ -76,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, c
 -- 7. Memories Table
 CREATE TABLE IF NOT EXISTS memories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category VARCHAR(50) NOT NULL DEFAULT 'other'
         CHECK (category IN ('personal','health','travel','food','schedule','other')),
     fact TEXT NOT NULL,
@@ -92,7 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_user_status ON memories(user_id, status)
 -- 8. Reminders Table
 CREATE TABLE IF NOT EXISTS reminders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     text TEXT NOT NULL,
     schedule_kind VARCHAR(20) NOT NULL DEFAULT 'at'
         CHECK (schedule_kind IN ('at','every','cron')),

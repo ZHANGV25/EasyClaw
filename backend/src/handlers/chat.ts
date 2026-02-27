@@ -138,11 +138,23 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             return { statusCode: 400, body: JSON.stringify({ error: "Message required" }) };
         }
 
-        // ── Credit check ────────────────────────
-        const balanceRes = await query(
+        // ── Credit check (auto-create user if Clerk webhook hasn't fired yet) ──
+        let balanceRes = await query(
             `SELECT credits_balance FROM users WHERE id = $1`,
             [userId]
         );
+        if (balanceRes.rows.length === 0) {
+            // User doesn't exist yet — create with free credits
+            await query(
+                `INSERT INTO users (id, email, credits_balance) VALUES ($1, '', 5.0000) ON CONFLICT (id) DO NOTHING`,
+                [userId]
+            );
+            await query(
+                `INSERT INTO transactions (user_id, amount, type, description) VALUES ($1, 5.0000, 'FREE_TIER', 'Welcome bonus')`,
+                [userId]
+            );
+            balanceRes = await query(`SELECT credits_balance FROM users WHERE id = $1`, [userId]);
+        }
         if (balanceRes.rows.length > 0) {
             const balance = parseFloat(balanceRes.rows[0].credits_balance);
             if (balance <= 0) {

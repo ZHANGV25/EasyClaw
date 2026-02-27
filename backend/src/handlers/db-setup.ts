@@ -1,14 +1,36 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { query } from '../util/db';
 
-// 1. Users Table
+// Migration: UUID → TEXT for users.id and all user_id foreign keys.
+// Safe to run on both fresh and existing databases.
+const MIGRATION_SQL = `
+DO $$
+BEGIN
+    -- Only migrate if users.id is still uuid type
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'id' AND data_type = 'uuid'
+    ) THEN
+        -- Drop foreign keys first
+        ALTER TABLE conversations ALTER COLUMN user_id TYPE TEXT;
+        ALTER TABLE jobs ALTER COLUMN user_id TYPE TEXT;
+        ALTER TABLE transactions ALTER COLUMN user_id TYPE TEXT;
+        ALTER TABLE memories ALTER COLUMN user_id TYPE TEXT;
+        ALTER TABLE reminders ALTER COLUMN user_id TYPE TEXT;
+        -- Change primary key
+        ALTER TABLE users ALTER COLUMN id TYPE TEXT;
+        RAISE NOTICE 'Migrated users.id and user_id columns from UUID to TEXT';
+    END IF;
+END $$;
+`;
+
 const SCHEMA_SQL = `
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY, -- Matches Clerk ID (passed from frontend) or generated
+    id TEXT PRIMARY KEY, -- Clerk user ID (e.g. "user_xxx")
     email VARCHAR(255) NOT NULL,
     credits_balance NUMERIC(10, 4) DEFAULT 0.0000,
     stripe_customer_id VARCHAR(255),
@@ -20,7 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- 2. Conversations Table
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) DEFAULT 'New Conversation',
     state JSONB DEFAULT '{}', -- Summary context
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -40,7 +62,7 @@ CREATE TABLE IF NOT EXISTS messages (
 -- 4. Jobs Table (The Polling Queue)
 CREATE TABLE IF NOT EXISTS jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL, -- Optional link
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED')),
     type VARCHAR(50) NOT NULL DEFAULT 'CHAT',
@@ -67,7 +89,7 @@ CREATE TABLE IF NOT EXISTS state_snapshots (
 -- 6. Transactions Table (Credits History)
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount NUMERIC(10, 4) NOT NULL, -- Positive for purchase, negative for usage
     type VARCHAR(50) NOT NULL CHECK (type IN ('PURCHASE', 'USAGE', 'FREE_TIER', 'REFUND')),
     description TEXT,
@@ -81,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, c
 -- 7. Memories Table
 CREATE TABLE IF NOT EXISTS memories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category VARCHAR(50) NOT NULL DEFAULT 'other'
         CHECK (category IN ('personal','health','travel','food','schedule','other')),
     fact TEXT NOT NULL,
@@ -97,7 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_user_status ON memories(user_id, status)
 -- 8. Reminders Table
 CREATE TABLE IF NOT EXISTS reminders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     text TEXT NOT NULL,
     schedule_kind VARCHAR(20) NOT NULL DEFAULT 'at'
         CHECK (schedule_kind IN ('at','every','cron')),
@@ -113,15 +135,13 @@ CREATE TABLE IF NOT EXISTS reminders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_reminders_user_status ON reminders(user_id, status);
-
--- Seed Initial User
-INSERT INTO users (id, email, credits_balance)
-VALUES ('11111111-1111-1111-1111-111111111111', 'test@example.com', 100.0000)
-ON CONFLICT (id) DO NOTHING;
 `;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
+        // Run migration first (safe on fresh DBs — the DO block checks column type)
+        await query(MIGRATION_SQL);
+        // Then ensure all tables exist with correct types
         await query(SCHEMA_SQL);
 
         return {
