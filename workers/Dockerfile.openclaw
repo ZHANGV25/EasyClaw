@@ -41,7 +41,9 @@ RUN mkdir -p /tmp/workspace
 # ── Init script for the adapter ───────────────────────────────
 # The base image's entrypoint runs this before starting the gateway.
 # We launch the adapter in the background so it runs alongside the gateway.
-RUN printf '#!/bin/bash\necho "[init] Starting EasyClaw adapter in background..."\ncd /sidecar && node dist/openclaw-adapter.js &\necho "[init] Adapter PID: $!"\n' > /sidecar/init.sh && chmod +x /sidecar/init.sh
+# Also add "browser" host entry — the entrypoint generates an nginx config
+# that proxies to a "browser" Docker Compose service which doesn't exist in ECS.
+RUN printf '#!/bin/bash\necho "127.0.0.1 browser" >> /etc/hosts\necho "[init] Starting EasyClaw adapter in background..."\ncd /sidecar && node dist/openclaw-adapter.js &\necho "[init] Adapter PID: $!"\n' > /sidecar/init.sh && chmod +x /sidecar/init.sh
 
 # ── Environment ───────────────────────────────────────────────
 ENV OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
