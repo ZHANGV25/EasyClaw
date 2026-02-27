@@ -1,9 +1,9 @@
 # =============================================================
 # EasyClaw Worker with OpenClaw + Sidecar Adapter
 # =============================================================
-# Two processes run inside this container:
-#   1. OpenClaw (AI agent for computer control) — port 8080 / ws
-#   2. Sidecar adapter (polls job queue, forwards to OpenClaw)
+# Uses the OpenClaw base image's entrypoint for full setup
+# (dir creation, configure.js, nginx, etc.), and injects
+# the sidecar adapter via OPENCLAW_DOCKER_INIT_SCRIPT.
 # =============================================================
 
 # ── Stage 1: Build the sidecar ──────────────────────────────
@@ -38,37 +38,12 @@ COPY --from=builder /app/dist ./dist
 # Create workspace directory
 RUN mkdir -p /tmp/workspace
 
-# ── Startup script ──────────────────────────────────────────
-# Start OpenClaw in background, then run the adapter
-RUN printf '#!/bin/bash\n\
-set -e\n\
-\n\
-echo "[entrypoint] Starting OpenClaw gateway..."\n\
-cd /data && openclaw gateway --port 18789 &\n\
-OPENCLAW_PID=$!\n\
-\n\
-echo "[entrypoint] Starting EasyClaw adapter..."\n\
-cd /sidecar && node dist/openclaw-adapter.js &\n\
-ADAPTER_PID=$!\n\
-\n\
-# Wait for either to exit — if one crashes, stop the other\n\
-wait -n $OPENCLAW_PID $ADAPTER_PID\n\
-EXIT_CODE=$?\n\
-\n\
-echo "[entrypoint] Process exited with code $EXIT_CODE, shutting down..."\n\
-kill $OPENCLAW_PID $ADAPTER_PID 2>/dev/null || true\n\
-wait\n\
-exit $EXIT_CODE\n' > /start.sh && chmod +x /start.sh
+# ── Init script for the adapter ───────────────────────────────
+# The base image's entrypoint runs this before starting the gateway.
+# We launch the adapter in the background so it runs alongside the gateway.
+RUN printf '#!/bin/bash\necho "[init] Starting EasyClaw adapter in background..."\ncd /sidecar && node dist/openclaw-adapter.js &\necho "[init] Adapter PID: $!"\n' > /sidecar/init.sh && chmod +x /sidecar/init.sh
 
-# Health check — verify OpenClaw gateway is responding
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -sf http://127.0.0.1:18789/ || exit 1
-
+# ── Environment ───────────────────────────────────────────────
 ENV OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
-# Internal-only token for gateway <-> adapter communication within the container
-ENV OPENCLAW_GATEWAY_TOKEN=internal-container-token
-
-# The base OpenClaw image has an ENTRYPOINT that validates env vars.
-# Override it so we control startup via /start.sh.
-ENTRYPOINT []
-CMD ["/start.sh"]
+ENV OPENCLAW_GATEWAY_PORT=18789
+ENV OPENCLAW_DOCKER_INIT_SCRIPT=/sidecar/init.sh

@@ -105,8 +105,14 @@ export class WorkerStack extends cdk.Stack {
         S3_BUCKET: props.s3Bucket,
         POLL_INTERVAL_MS: '5000',
         OPENCLAW_GATEWAY_URL: 'ws://127.0.0.1:18789',
+        OPENCLAW_GATEWAY_TOKEN: 'internal-container-token',
         OPENCLAW_TASK_TIMEOUT_MS: '300000',
-        ...(props.anthropicApiKey ? { ANTHROPIC_API_KEY: props.anthropicApiKey } : {}),
+        // OpenClaw entrypoint requires at least one AI provider key.
+        // We use Bedrock via IAM roles, but set ANTHROPIC_API_KEY if provided
+        // or SYNTHETIC_API_KEY as a fallback to satisfy the check.
+        ...(props.anthropicApiKey
+          ? { ANTHROPIC_API_KEY: props.anthropicApiKey }
+          : { SYNTHETIC_API_KEY: 'bedrock-via-iam-role' }),
       },
       healthCheck: {
         command: ['CMD-SHELL', 'curl -sf http://127.0.0.1:18789/ || exit 1'],
