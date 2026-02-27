@@ -107,12 +107,14 @@ export class WorkerStack extends cdk.Stack {
         OPENCLAW_GATEWAY_URL: 'ws://127.0.0.1:18789',
         OPENCLAW_GATEWAY_TOKEN: 'internal-container-token',
         OPENCLAW_TASK_TIMEOUT_MS: '300000',
-        // OpenClaw entrypoint requires at least one AI provider key.
-        // We use Bedrock via IAM roles, but set ANTHROPIC_API_KEY if provided
-        // or SYNTHETIC_API_KEY as a fallback to satisfy the check.
+        // Bedrock via IAM task role — AWS_PROFILE triggers OpenClaw's credential detection
+        AWS_PROFILE: 'default',
+        AWS_REGION: 'us-east-1',
+        BEDROCK_PROVIDER_FILTER: 'anthropic',
+        OPENCLAW_PRIMARY_MODEL: 'amazon-bedrock/us.anthropic.claude-sonnet-4-6-v1:0',
         ...(props.anthropicApiKey
           ? { ANTHROPIC_API_KEY: props.anthropicApiKey }
-          : { SYNTHETIC_API_KEY: 'bedrock-via-iam-role' }),
+          : {}),
       },
       healthCheck: {
         command: ['CMD-SHELL', 'curl -sf http://127.0.0.1:18789/ || exit 1'],
