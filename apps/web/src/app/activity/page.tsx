@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Task } from "@/types/activity";
 import { ActivityBlock } from "@/components/ActivityBlock";
 import { Skeleton } from "@/components/Skeleton";
 import Link from "next/link";
+import { apiGet } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 export default function ActivityPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -13,22 +15,24 @@ export default function ActivityPage() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const getToken = useAuthToken();
+
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const data = await apiGet<{ tasks: Task[] }>(`/api/activity?filter=${filter}&search=${search}`, token);
+      setTasks(data.tasks);
+    } catch (error) {
+      console.error("Failed to fetch tasks", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, search, getToken]);
 
   useEffect(() => {
-    async function fetchTasks() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/activity?filter=${filter}&search=${search}`);
-        const data = await res.json();
-        setTasks(data.tasks);
-      } catch (error) {
-        console.error("Failed to fetch tasks", error);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchTasks();
-  }, [filter, search]);
+  }, [fetchTasks]);
 
   const toggleExpand = (taskId: string) => {
     setExpandedTaskId(expandedTaskId === taskId ? null : taskId);

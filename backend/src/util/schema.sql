@@ -72,3 +72,39 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 -- Index for history queries
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, created_at DESC);
+
+-- 7. Memories Table
+CREATE TABLE IF NOT EXISTS memories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category VARCHAR(50) NOT NULL DEFAULT 'other'
+        CHECK (category IN ('personal','health','travel','food','schedule','other')),
+    fact TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'confirmed'
+        CHECK (status IN ('pending','confirmed','rejected')),
+    source_conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+    source_message_preview TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_memories_user_status ON memories(user_id, status);
+
+-- 8. Reminders Table
+CREATE TABLE IF NOT EXISTS reminders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    schedule_kind VARCHAR(20) NOT NULL DEFAULT 'at'
+        CHECK (schedule_kind IN ('at','every','cron')),
+    next_fire_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    human_readable VARCHAR(255) NOT NULL,
+    recurrence VARCHAR(20) NOT NULL DEFAULT 'one-time'
+        CHECK (recurrence IN ('one-time','daily','weekly','monthly','custom')),
+    status VARCHAR(20) NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active','paused','completed','expired')),
+    last_fired_at TIMESTAMP WITH TIME ZONE,
+    conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_reminders_user_status ON reminders(user_id, status);

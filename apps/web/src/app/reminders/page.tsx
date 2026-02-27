@@ -1,25 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Reminder } from "@/types/reminders";
 import { ReminderCard } from "@/components/ReminderCard";
 import { Skeleton } from "@/components/Skeleton";
+import { apiGet, apiPatch, apiDelete } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 export default function RemindersPage() {
   const [upcoming, setUpcoming] = useState<Reminder[]>([]);
   const [past, setPast] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPast, setShowPast] = useState(false);
+  const getToken = useAuthToken();
 
-  useEffect(() => {
-    fetchReminders();
-  }, []);
-
-  const fetchReminders = async () => {
+  const fetchReminders = useCallback(async () => {
     try {
-      const res = await fetch("/api/reminders");
-      const data = await res.json();
+      const token = await getToken();
+      const data = await apiGet<{ upcoming: Reminder[]; past: Reminder[] }>("/api/reminders", token);
       setUpcoming(data.upcoming);
       setPast(data.past);
     } catch (error) {
@@ -27,37 +26,36 @@ export default function RemindersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchReminders();
+  }, [fetchReminders]);
 
   const handleUpdate = async (id: string, updates: Partial<Reminder>) => {
-    // Optimistic update
     setUpcoming((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
     );
-    
+
     try {
-      await fetch(`/api/reminders/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(updates),
-      });
+      const token = await getToken();
+      await apiPatch(`/api/reminders/${id}`, updates, token);
     } catch (error) {
       console.error("Failed to update reminder:", error);
-      fetchReminders(); // Revert on error
+      fetchReminders();
     }
   };
 
   const handleDelete = async (id: string) => {
-    // Optimistic update
     setUpcoming((prev) => prev.filter((r) => r.id !== id));
     setPast((prev) => prev.filter((r) => r.id !== id));
 
     try {
-      await fetch(`/api/reminders/${id}`, {
-        method: "DELETE",
-      });
+      const token = await getToken();
+      await apiDelete(`/api/reminders/${id}`, token);
     } catch (error) {
       console.error("Failed to delete reminder:", error);
-      fetchReminders(); // Revert on error
+      fetchReminders();
     }
   };
 

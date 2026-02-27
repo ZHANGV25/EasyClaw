@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
+import { apiPost } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 const STEPS = ["Your Name", "Timezone", "Interests", "Assistant"];
 
@@ -35,6 +37,7 @@ export default function OnboardingPage() {
   const { user } = useUser();
   const router = useRouter();
   const { addToast } = useToast();
+  const getToken = useAuthToken();
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -66,21 +69,13 @@ export default function OnboardingPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        addToast("success", "Your assistant is being set up! 🚀");
-        router.push("/chat");
-      } else {
-        const error = await res.json().catch(() => ({}));
-        addToast("error", error.message || "Failed to set up your assistant. Please try again.");
-      }
-    } catch (err) {
+      const token = await getToken();
+      await apiPost("/api/onboarding", form, token);
+      addToast("success", "Your assistant is being set up! 🚀");
+      router.push("/chat");
+    } catch (err: any) {
       console.error("Onboarding failed:", err);
-      addToast("error", "Network error. Please check your connection and try again.");
+      addToast("error", err?.message || "Failed to set up your assistant. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

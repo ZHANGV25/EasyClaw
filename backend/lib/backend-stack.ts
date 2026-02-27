@@ -80,6 +80,7 @@ export class BackendStack extends cdk.Stack {
         CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || '',
         STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
         STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
+        CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET || '',
       },
       bundling: {
         externalModules: ['pg-native'],
@@ -183,6 +184,48 @@ export class BackendStack extends cdk.Stack {
     });
     db.secret?.grantRead(stripeLambda);
 
+    const memoryLambda = new nodejs.NodejsFunction(this, 'MemoryLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/memory.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(memoryLambda);
+
+    const remindersLambda = new nodejs.NodejsFunction(this, 'RemindersLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/reminders.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(remindersLambda);
+
+    const activityLambda = new nodejs.NodejsFunction(this, 'ActivityLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/activity.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(activityLambda);
+
+    const browserLambda = new nodejs.NodejsFunction(this, 'BrowserLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/browser.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(browserLambda);
+
+    const onboardingLambda = new nodejs.NodejsFunction(this, 'OnboardingLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/onboarding.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(onboardingLambda);
+
+    const clerkWebhookLambda = new nodejs.NodejsFunction(this, 'ClerkWebhookLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/clerk-webhook.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(clerkWebhookLambda);
+
     // Job Queue API Lambdas — use Clerk auth, same env as common lambdas
     const jobLambdaConfig: nodejs.NodejsFunctionProps = {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -244,9 +287,10 @@ export class BackendStack extends cdk.Stack {
     const chatResource = apiRoot.addResource('chat');
     chatResource.addMethod('POST', new apigateway.LambdaIntegration(chatLambda));
 
-    // GET /api/user
+    // GET, PATCH /api/user
     const userResource = apiRoot.addResource('user');
     userResource.addMethod('GET', new apigateway.LambdaIntegration(userLambda));
+    userResource.addMethod('PATCH', new apigateway.LambdaIntegration(userLambda));
 
     // POST /api/telegram/connect
     const telegramResource = apiRoot.addResource('telegram');
@@ -277,6 +321,45 @@ export class BackendStack extends cdk.Stack {
     const webhooksResource = apiRoot.addResource('webhooks');
     const stripeWebhook = webhooksResource.addResource('stripe');
     stripeWebhook.addMethod('POST', new apigateway.LambdaIntegration(stripeLambda));
+
+    // Clerk webhook
+    const clerkWebhook = webhooksResource.addResource('clerk');
+    clerkWebhook.addMethod('POST', new apigateway.LambdaIntegration(clerkWebhookLambda));
+
+    // /api/memory (GET, POST)
+    const memoryResource = apiRoot.addResource('memory');
+    memoryResource.addMethod('GET', new apigateway.LambdaIntegration(memoryLambda));
+    memoryResource.addMethod('POST', new apigateway.LambdaIntegration(memoryLambda));
+    // /api/memory/{id} (PUT, DELETE)
+    const memoryIdResource = memoryResource.addResource('{id}');
+    memoryIdResource.addMethod('PUT', new apigateway.LambdaIntegration(memoryLambda));
+    memoryIdResource.addMethod('DELETE', new apigateway.LambdaIntegration(memoryLambda));
+    // /api/memory/{id}/confirm, /api/memory/{id}/reject
+    const memoryConfirm = memoryIdResource.addResource('confirm');
+    memoryConfirm.addMethod('POST', new apigateway.LambdaIntegration(memoryLambda));
+    const memoryReject = memoryIdResource.addResource('reject');
+    memoryReject.addMethod('POST', new apigateway.LambdaIntegration(memoryLambda));
+
+    // /api/reminders (GET)
+    const remindersResource = apiRoot.addResource('reminders');
+    remindersResource.addMethod('GET', new apigateway.LambdaIntegration(remindersLambda));
+    // /api/reminders/{id} (PATCH, DELETE)
+    const reminderIdResource = remindersResource.addResource('{id}');
+    reminderIdResource.addMethod('PATCH', new apigateway.LambdaIntegration(remindersLambda));
+    reminderIdResource.addMethod('DELETE', new apigateway.LambdaIntegration(remindersLambda));
+
+    // /api/activity (GET)
+    const activityResource = apiRoot.addResource('activity');
+    activityResource.addMethod('GET', new apigateway.LambdaIntegration(activityLambda));
+
+    // /api/browser/status (GET)
+    const browserResource = apiRoot.addResource('browser');
+    const browserStatus = browserResource.addResource('status');
+    browserStatus.addMethod('GET', new apigateway.LambdaIntegration(browserLambda));
+
+    // /api/onboarding (POST)
+    const onboardingResource = apiRoot.addResource('onboarding');
+    onboardingResource.addMethod('POST', new apigateway.LambdaIntegration(onboardingLambda));
 
     // Internal API (worker-to-backend communication, secured by VPC/IAM)
     const internal = apiRoot.addResource('internal');

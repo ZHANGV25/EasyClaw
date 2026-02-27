@@ -67,6 +67,53 @@ const listJobsTool = tool(
     }
 );
 
+// @ts-ignore
+const saveMemoryTool = tool(
+    async ({ category, fact }: { category: string; fact: string }) => {
+        return `Memory saved: "${fact}"`;
+    },
+    {
+        name: "save_memory",
+        description: "Save a fact or piece of information the user shared about themselves. Use this whenever the user tells you something personal, a preference, a habit, or any detail worth remembering for future conversations.",
+        schema: z.object({
+            category: z.enum(["personal", "health", "travel", "food", "schedule", "other"]).describe("Category of the memory."),
+            fact: z.string().describe("The fact or piece of information to remember."),
+        }),
+    }
+);
+
+// @ts-ignore
+const recallMemoryTool = tool(
+    async ({ query: q }: { query: string }) => {
+        return `Recalling memories for: "${q}"`;
+    },
+    {
+        name: "recall_memory",
+        description: "Search the user's saved memories for relevant facts. Use this when you need context about the user's preferences, history, or personal details to give a better answer.",
+        schema: z.object({
+            query: z.string().describe("Search query to find relevant memories."),
+        }),
+    }
+);
+
+// @ts-ignore
+const createReminderTool = tool(
+    async ({ text, nextFireAt, humanReadable, recurrence, scheduleKind }: { text: string; nextFireAt: string; humanReadable: string; recurrence: string; scheduleKind?: string }) => {
+        return `Reminder created: "${text}"`;
+    },
+    {
+        name: "create_reminder",
+        description: "Create a reminder for the user. Use this when the user asks to be reminded about something at a specific time or on a recurring schedule.",
+        schema: z.object({
+            text: z.string().describe("The reminder text — what the user should be reminded about."),
+            nextFireAt: z.string().describe("ISO 8601 timestamp for when the reminder should fire next."),
+            humanReadable: z.string().describe("Human-readable description of the schedule, e.g. 'Tomorrow at 9am' or 'Every Monday at 8am'."),
+            recurrence: z.enum(["one-time", "daily", "weekly", "monthly", "custom"]).describe("How often the reminder repeats."),
+            scheduleKind: z.enum(["at", "every", "cron"]).optional().describe("Schedule type. Defaults to 'at'."),
+        }),
+    }
+);
+
 // ─── Model ──────────────────────────────────────
 
 const model = new ChatBedrockConverse({
@@ -75,7 +122,7 @@ const model = new ChatBedrockConverse({
     maxTokens: 1024,
 });
 
-const modelWithTools = model.bindTools([createJobTool, computerUseTool, researchTool, listJobsTool]);
+const modelWithTools = model.bindTools([createJobTool, computerUseTool, researchTool, listJobsTool, saveMemoryTool, recallMemoryTool, createReminderTool]);
 
 // ─── Handler ────────────────────────────────────
 
@@ -131,6 +178,9 @@ If the user asks for a complex task that requires controlling a computer (e.g., 
 If the user wants web research or information gathering, use the "search_web" tool.
 If the user asks for a complex conversational task that should run in the background, use the "create_job" tool.
 If the user asks about the status of their tasks or jobs, use the "list_jobs" tool.
+If the user tells you something personal about themselves (preferences, habits, facts, likes/dislikes), use "save_memory" to store it for future reference.
+If you need to recall something the user previously told you (their preferences, personal details, schedule), use "recall_memory" to search their saved memories.
+If the user asks to be reminded about something, use "create_reminder" to set up a reminder with the appropriate schedule.
 If the user asks a simple question, answer directly. Be concise.`;
 
         const messages = [
@@ -209,6 +259,57 @@ If the user asks a simple question, answer directly. Be concise.`;
                     ).join("\n");
                 }
 
+                await storeReplyAndDeduct(userId, finalConversationId, reply, message);
+                return jsonOk({ conversationId: finalConversationId, message: reply, status: "COMPLETED" });
+            }
+
+            if (toolCall.name === 'save_memory') {
+                const input = toolCall.args;
+                await query(
+                    `INSERT INTO memories (user_id, category, fact, status, source_conversation_id, source_message_preview)
+                     VALUES ($1, $2, $3, 'pending', $4, $5)`,
+                    [userId, input.category || 'other', input.fact, finalConversationId, message.substring(0, 200)]
+                );
+                const reply = `Got it! I'll remember that: "${input.fact}"`;
+                await storeReplyAndDeduct(userId, finalConversationId, reply, message);
+                return jsonOk({ conversationId: finalConversationId, message: reply, status: "COMPLETED" });
+            }
+
+            if (toolCall.name === 'recall_memory') {
+                const input = toolCall.args;
+                const memoriesRes = await query(
+                    `SELECT category, fact FROM memories WHERE user_id = $1 AND status = 'confirmed' AND fact ILIKE $2 ORDER BY created_at DESC LIMIT 10`,
+                    [userId, `%${input.query}%`]
+                );
+                const memories = memoriesRes.rows;
+
+                // Re-invoke model with memory context for a natural reply
+                const memoryContext = memories.length > 0
+                    ? `Here's what I know about you:\n${memories.map((m: any) => `- [${m.category}] ${m.fact}`).join('\n')}`
+                    : `I don't have any saved memories matching "${input.query}".`;
+
+                const followUp = await modelWithTools.invoke([
+                    new SystemMessage(systemPrompt),
+                    new HumanMessage(message),
+                    new AIMessage({ content: '', tool_calls: [{ id: toolCall.id || 'recall', name: 'recall_memory', args: input }] }),
+                    new ToolMessage({ content: memoryContext, tool_call_id: toolCall.id || 'recall' }),
+                ]);
+
+                const reply = typeof followUp.content === 'string' ? followUp.content :
+                    (Array.isArray(followUp.content) ? (followUp.content[0] as any).text : memoryContext);
+
+                await storeReplyAndDeduct(userId, finalConversationId, reply, message);
+                return jsonOk({ conversationId: finalConversationId, message: reply, status: "COMPLETED" });
+            }
+
+            if (toolCall.name === 'create_reminder') {
+                const input = toolCall.args;
+                await query(
+                    `INSERT INTO reminders (user_id, text, schedule_kind, next_fire_at, human_readable, recurrence, conversation_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [userId, input.text, input.scheduleKind || 'at', input.nextFireAt, input.humanReadable, input.recurrence || 'one-time', finalConversationId]
+                );
+                const reply = `Reminder set: "${input.text}" — ${input.humanReadable}`;
                 await storeReplyAndDeduct(userId, finalConversationId, reply, message);
                 return jsonOk({ conversationId: finalConversationId, message: reply, status: "COMPLETED" });
             }

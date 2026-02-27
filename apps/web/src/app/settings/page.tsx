@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 import { Skeleton } from "@/components/Skeleton";
 import { ApiError } from "@/components/ApiError";
 
@@ -43,36 +44,46 @@ export default function SettingsPage() {
   // Vault form
   const [newSecretKey, setNewSecretKey] = useState("");
   const [newSecretValue, setNewSecretValue] = useState("");
+  const getToken = useAuthToken();
+
+  const fetchData = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const userData = await apiGet<{ name: string; timezone: string; assistant: AssistantConfig }>("/api/user", token);
+      setProfile({ name: userData.name || "", timezone: userData.timezone || "" });
+      setAssistant(userData.assistant || { name: "", interests: "" });
+      // Vault may not exist yet — catch separately
+      try {
+        const vaultData = await apiGet<{ secrets: Secret[] }>("/api/vault", token);
+        setSecrets(vaultData.secrets || []);
+      } catch {
+        setSecrets([]);
+      }
+    } catch (err) {
+      console.error("Failed to load settings", err);
+      setError("Failed to load settings. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [userData, vaultData] = await Promise.all([
-          apiGet<{ name: string; timezone: string; assistant: AssistantConfig }>("/api/user"),
-          apiGet<{ secrets: Secret[] }>("/api/vault"),
-        ]);
-        setProfile({ name: userData.name, timezone: userData.timezone });
-        setAssistant(userData.assistant);
-        setSecrets(vaultData.secrets);
-      } catch (err) {
-        console.error("Failed to load settings", err);
-        setError("Failed to load settings. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
     setMessage(null);
     try {
-      // Mock API call to update profile
-      await new Promise((r) => setTimeout(r, 600));
-      setMessage({ type: "success", text: "Profile updated successfully." });
+      const token = await getToken();
+      if (activeTab === "general") {
+        await apiPatch("/api/user", { name: profile.name, timezone: profile.timezone }, token);
+      } else if (activeTab === "assistant") {
+        await apiPatch("/api/user", { assistant }, token);
+      }
+      setMessage({ type: "success", text: "Settings updated successfully." });
     } catch {
-      setMessage({ type: "error", text: "Failed to update profile." });
+      setMessage({ type: "error", text: "Failed to update settings." });
     } finally {
       setSaving(false);
     }
@@ -84,10 +95,11 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
+      const token = await getToken();
       const res = await apiPost<{ success: boolean; secret: Secret }>("/api/vault", {
         key: newSecretKey,
         value: newSecretValue,
-      });
+      }, token);
       setSecrets([...secrets, res.secret]);
       setNewSecretKey("");
       setNewSecretValue("");
@@ -101,9 +113,10 @@ export default function SettingsPage() {
 
   const handleDeleteSecret = async (id: string) => {
     if (!confirm("Are you sure you want to delete this secret? This action cannot be undone.")) return;
-    
+
     try {
-      await apiDelete(`/api/vault?id=${id}`);
+      const token = await getToken();
+      await apiDelete(`/api/vault?id=${id}`, token);
       setSecrets(secrets.filter((s) => s.id !== id));
       setMessage({ type: "success", text: "Secret deleted." });
     } catch {

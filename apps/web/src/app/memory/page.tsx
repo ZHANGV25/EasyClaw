@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { MemoryCategory, MemoryFact, Learning, MemoryResponse } from "@/types/memory";
 import { MemoryCard } from "@/components/memory/MemoryCard";
 import { RecentLearningItem } from "@/components/memory/RecentLearningItem";
 import { Brain, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { apiGet, apiPost, apiDelete, api } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 const CATEGORIES: MemoryCategory[] = [
   "personal",
@@ -21,12 +23,12 @@ export default function MemoryPage() {
   const [facts, setFacts] = useState<MemoryFact[]>([]);
   const [recentLearnings, setRecentLearnings] = useState<Learning[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const getToken = useAuthToken();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/memory");
-      if (!res.ok) throw new Error("Failed to fetch memory");
-      const data: MemoryResponse = await res.json();
+      const token = await getToken();
+      const data = await apiGet<MemoryResponse>("/api/memory", token);
       setFacts(data.facts);
       setRecentLearnings(data.recentLearnings);
     } catch (error) {
@@ -34,23 +36,17 @@ export default function MemoryPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleAddFact = async (category: MemoryCategory, fact: string) => {
     try {
-      const res = await fetch("/api/memory", {
-        method: "POST",
-        body: JSON.stringify({ category, fact }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (res.ok) {
-        const newFact = await res.json();
-        setFacts([...facts, newFact]);
-      }
+      const token = await getToken();
+      const newFact = await apiPost<MemoryFact>("/api/memory", { category, fact }, token);
+      setFacts([...facts, newFact]);
     } catch (error) {
       console.error(error);
     }
@@ -58,14 +54,9 @@ export default function MemoryPage() {
 
   const handleUpdateFact = async (id: string, fact: string) => {
     try {
-      const res = await fetch(`/api/memory/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ fact }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (res.ok) {
-        setFacts(facts.map((f) => (f.id === id ? { ...f, fact } : f)));
-      }
+      const token = await getToken();
+      await api(`/api/memory/${id}`, { method: "PUT", json: { fact }, authToken: token });
+      setFacts(facts.map((f) => (f.id === id ? { ...f, fact } : f)));
     } catch (error) {
       console.error(error);
     }
@@ -74,12 +65,9 @@ export default function MemoryPage() {
   const handleDeleteFact = async (id: string) => {
     if (!confirm("Are you sure you want to delete this fact?")) return;
     try {
-      const res = await fetch(`/api/memory/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setFacts(facts.filter((f) => f.id !== id));
-      }
+      const token = await getToken();
+      await apiDelete(`/api/memory/${id}`, token);
+      setFacts(facts.filter((f) => f.id !== id));
     } catch (error) {
       console.error(error);
     }
@@ -87,19 +75,14 @@ export default function MemoryPage() {
 
   const handleConfirmLearning = async (id: string) => {
     try {
-      const res = await fetch(`/api/memory/${id}/confirm`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        // Optimistically update
-        setRecentLearnings(
-          recentLearnings.map((l) =>
-            l.id === id ? { ...l, status: "confirmed" } : l
-          )
-        );
-        // In a real app, this might also move it to facts, so we'd refetch or manually move it
-        fetchData();
-      }
+      const token = await getToken();
+      await apiPost(`/api/memory/${id}/confirm`, {}, token);
+      setRecentLearnings(
+        recentLearnings.map((l) =>
+          l.id === id ? { ...l, status: "confirmed" } : l
+        )
+      );
+      fetchData();
     } catch (error) {
       console.error(error);
     }
@@ -107,14 +90,11 @@ export default function MemoryPage() {
 
   const handleRejectLearning = async (id: string) => {
     try {
-      const res = await fetch(`/api/memory/${id}/reject`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        setRecentLearnings(
-          recentLearnings.filter((l) => l.id !== id)
-        );
-      }
+      const token = await getToken();
+      await apiPost(`/api/memory/${id}/reject`, {}, token);
+      setRecentLearnings(
+        recentLearnings.filter((l) => l.id !== id)
+      );
     } catch (error) {
       console.error(error);
     }

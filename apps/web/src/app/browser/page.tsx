@@ -1,31 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { BrowserViewer } from "@/components/BrowserViewer";
 import { BrowserStatus } from "@/types/browser";
+import { apiGet } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 export default function BrowserPage() {
   const [isLive, setIsLive] = useState(false);
   const [status, setStatus] = useState<BrowserStatus | null>(null);
+  const getToken = useAuthToken();
 
-  // Poll for status
+  const fetchStatus = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const data = await apiGet<BrowserStatus>("/api/browser/status", token);
+      setStatus(data);
+      setIsLive(data.active);
+    } catch (e) {
+      console.error("Failed to fetch browser status", e);
+    }
+  }, [getToken]);
+
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch("/api/browser/status");
-        const data = await res.json();
-        setStatus(data);
-        setIsLive(data.active);
-      } catch (e) {
-        console.error("Failed to fetch browser status", e);
-      }
-    };
-
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchStatus]);
 
   return (
     <DashboardShell>

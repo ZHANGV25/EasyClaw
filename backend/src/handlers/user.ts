@@ -7,7 +7,44 @@ const FREE_TIER_CREDITS = 5.00;
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
         const userId = await requireAuth(event);
+        const method = event.httpMethod;
 
+        // PATCH /api/user — update user meta fields
+        if (method === 'PATCH') {
+            const body = JSON.parse(event.body || '{}');
+            const patch: Record<string, any> = {};
+            if (body.name !== undefined) patch.name = body.name;
+            if (body.timezone !== undefined) patch.timezone = body.timezone;
+            if (body.assistant !== undefined) patch.assistant = body.assistant;
+
+            if (Object.keys(patch).length > 0) {
+                await query(
+                    `UPDATE users SET meta = meta || $1, updated_at = NOW() WHERE id = $2`,
+                    [JSON.stringify(patch), userId]
+                );
+            }
+
+            const updated = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
+            const user = updated.rows[0];
+            const meta = user?.meta || {};
+
+            return {
+                statusCode: 200,
+                headers: { "Access-Control-Allow-Origin": "*" },
+                body: JSON.stringify({
+                    id: user.id,
+                    email: user.email,
+                    creditsBalance: parseFloat(user.credits_balance),
+                    meta: user.meta,
+                    name: meta.name || '',
+                    timezone: meta.timezone || '',
+                    assistant: meta.assistant || {},
+                    stripeCustomerId: user.stripe_customer_id,
+                }),
+            };
+        }
+
+        // GET /api/user
         const userRes = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
 
         if (userRes.rowCount === 0) {
@@ -32,12 +69,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
                     email: '',
                     creditsBalance: FREE_TIER_CREDITS,
                     meta: {},
+                    name: '',
+                    timezone: '',
+                    assistant: {},
                     isNew: true,
                 }),
             };
         }
 
         const user = userRes.rows[0];
+        const meta = user.meta || {};
 
         return {
             statusCode: 200,
@@ -47,6 +88,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
                 email: user.email,
                 creditsBalance: parseFloat(user.credits_balance),
                 meta: user.meta,
+                name: meta.name || '',
+                timezone: meta.timezone || '',
+                assistant: meta.assistant || {},
                 stripeCustomerId: user.stripe_customer_id,
             }),
         };
