@@ -50,45 +50,49 @@
 
 ## Next Up
 
-### Phase 4: Backend for All Feature Pages [P1 — HIGH PRIORITY, do next]
+### Phase 4: Backend for All Feature Pages [DONE]
 > The frontend pages exist with mock data. Backend handlers are needed.
 
-- [ ] **Memory system**
-  - [ ] Add `memories` table to schema (user_id, category, content, source, status)
-  - [ ] Create `backend/src/handlers/memory.ts` (GET/POST/PUT/DELETE)
-  - [ ] Add `save_memory` and `recall_memory` tools to chat handler
-  - [ ] Wire `apps/web/src/app/memory/page.tsx` to real endpoints
-- [ ] **Reminders system**
-  - [ ] Add `reminders` table to schema
-  - [ ] Create `backend/src/handlers/reminders.ts` (CRUD)
-  - [ ] Add `create_reminder` tool to chat handler
+- [x] **Memory system**
+  - [x] Add `memories` table to schema (user_id, category, content, source, status)
+  - [x] Create `backend/src/handlers/memory.ts` (GET/POST/PUT/DELETE)
+  - [x] Add `save_memory` and `recall_memory` tools to chat handler
+  - [x] Wire `apps/web/src/app/memory/page.tsx` to real endpoints
+- [x] **Reminders system**
+  - [x] Add `reminders` table to schema
+  - [x] Create `backend/src/handlers/reminders.ts` (CRUD)
+  - [x] Add `create_reminder` tool to chat handler
   - [ ] Add EventBridge / scheduled Lambda for firing reminders
-  - [ ] Wire `apps/web/src/app/reminders/page.tsx` to real endpoints
-- [ ] **Activity feed**
-  - [ ] Create `backend/src/handlers/activity.ts` (GET — query jobs with results)
-  - [ ] Wire `apps/web/src/app/activity/page.tsx` to real endpoint
-- [ ] **Browser viewer**
-  - [ ] Create `backend/src/handlers/browser-stream.ts` (SSE proxying OpenClaw screen)
-  - [ ] Wire `apps/web/src/components/BrowserViewer.tsx` to real endpoint
-- [ ] Add new Lambdas + API routes to `backend-stack.ts`
-- [ ] Redeploy backend stack
+  - [x] Wire `apps/web/src/app/reminders/page.tsx` to real endpoints
+- [x] **Activity feed**
+  - [x] Create `backend/src/handlers/activity.ts` (GET — query jobs with results)
+  - [x] Wire `apps/web/src/app/activity/page.tsx` to real endpoint
+- [x] **Browser viewer**
+  - [x] Create `backend/src/handlers/browser.ts` (GET status)
+  - [x] Wire `apps/web/src/app/browser/page.tsx` to real endpoint
+  - [ ] SSE streaming for live browser view (deferred)
+- [x] Add new Lambdas + API routes to `backend-stack.ts`
+- [x] Redeploy backend stack
+- [x] Wire settings page to real API with auth tokens
 
-### Phase 6: Onboarding & User Creation [P1 — do alongside Phase 4]
+### Phase 6: Onboarding & User Creation [DONE]
 > Completes the signup-to-first-chat experience.
 
-- [ ] Implement real `POST /api/onboarding` (save preferences in users.meta)
-- [ ] Create Clerk webhook handler for `user.created` (auto-create DB row)
-- [ ] Wire settings page to `PATCH /api/user`
-- [ ] Add onboarding + clerk-webhook routes to CDK
+- [x] Implement real `POST /api/onboarding` (save preferences in users.meta)
+- [x] Create Clerk webhook handler for `user.created` (auto-create DB row)
+- [x] Wire settings page to `PATCH /api/user`
+- [x] Add onboarding + clerk-webhook routes to CDK
 
-### Phase 5: Telegram Integration [P1 — do after Phase 4+6]
+### Phase 5: Telegram Integration [DONE]
 > Multi-client support. Depends on stable backend.
 
-- [ ] Implement Telegram bot via grammY / Bot API
-- [ ] Create `backend/src/handlers/telegram-webhook.ts` (receives updates)
-- [ ] Account linking: `/api/telegram/connect` generates token, bot links user
-- [ ] Store Telegram↔EasyClaw user mapping in `integrations` table or `users.meta`
-- [ ] Wire `apps/web/src/app/telegram/page.tsx` to real endpoints
+- [x] Implement Telegram bot via grammY / Bot API
+- [x] Create `backend/src/handlers/telegram-webhook.ts` (receives updates, routes to Bedrock)
+- [x] Account linking: `/api/telegram/connect` generates one-time token, bot `/start` links user
+- [x] Store Telegram↔EasyClaw user mapping in `users.meta` (telegram_id, telegram_username)
+- [x] Wire `apps/web/src/app/telegram/page.tsx` to real endpoints with auth tokens
+- [x] Add GET/DELETE to `/api/telegram/connect` for status checking and disconnecting
+- [ ] Set TELEGRAM_BOT_TOKEN env var and register webhook URL with Telegram API
 
 ### Phase 7: Infrastructure Hardening [P2 — before public launch]
 - [ ] Upgrade RDS to `t4g.small`, enable Multi-AZ

@@ -81,6 +81,9 @@ export class BackendStack extends cdk.Stack {
         STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
         STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
         CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET || '',
+        TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
+        TELEGRAM_BOT_USERNAME: process.env.TELEGRAM_BOT_USERNAME || 'EasyClawBot',
+        TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET || '',
       },
       bundling: {
         externalModules: ['pg-native'],
@@ -131,6 +134,21 @@ export class BackendStack extends cdk.Stack {
       handler: 'handler',
     });
     db.secret?.grantRead(telegramLambda);
+
+    const telegramWebhookLambda = new nodejs.NodejsFunction(this, 'TelegramWebhookLambda', {
+      ...commonLambdaProps,
+      entry: path.join(__dirname, '../src/handlers/telegram-webhook.ts'),
+      handler: 'handler',
+    });
+    db.secret?.grantRead(telegramWebhookLambda);
+    // Grant Bedrock access for Telegram chat
+    telegramWebhookLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+      resources: [
+        `arn:aws:bedrock:*::foundation-model/*`,
+        `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/*`
+      ],
+    }));
 
     const pollLambda = new nodejs.NodejsFunction(this, 'PollLambda', {
       ...commonLambdaProps,
@@ -292,10 +310,12 @@ export class BackendStack extends cdk.Stack {
     userResource.addMethod('GET', new apigateway.LambdaIntegration(userLambda));
     userResource.addMethod('PATCH', new apigateway.LambdaIntegration(userLambda));
 
-    // POST /api/telegram/connect
+    // /api/telegram/connect (GET, POST, DELETE)
     const telegramResource = apiRoot.addResource('telegram');
     const telegramConnect = telegramResource.addResource('connect');
+    telegramConnect.addMethod('GET', new apigateway.LambdaIntegration(telegramLambda));
     telegramConnect.addMethod('POST', new apigateway.LambdaIntegration(telegramLambda));
+    telegramConnect.addMethod('DELETE', new apigateway.LambdaIntegration(telegramLambda));
 
     // GET /api/usage
     const usageResource = apiRoot.addResource('usage');
@@ -325,6 +345,10 @@ export class BackendStack extends cdk.Stack {
     // Clerk webhook
     const clerkWebhook = webhooksResource.addResource('clerk');
     clerkWebhook.addMethod('POST', new apigateway.LambdaIntegration(clerkWebhookLambda));
+
+    // Telegram webhook (no auth — Telegram secret token verification)
+    const telegramWebhook = webhooksResource.addResource('telegram');
+    telegramWebhook.addMethod('POST', new apigateway.LambdaIntegration(telegramWebhookLambda));
 
     // /api/memory (GET, POST)
     const memoryResource = apiRoot.addResource('memory');

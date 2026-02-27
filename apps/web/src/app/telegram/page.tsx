@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { apiPost, apiGet } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 import { ApiError } from "@/components/ApiError";
 
 export default function TelegramPage() {
@@ -10,6 +11,22 @@ export default function TelegramPage() {
   const [botUrl, setBotUrl] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const getToken = useAuthToken();
+
+  // Check initial connection status
+  useEffect(() => {
+    async function checkStatus() {
+      try {
+        const token = await getToken();
+        const res = await apiGet<{ connected: boolean; botUrl: string | null }>("/api/telegram/connect", token);
+        setConnected(res.connected);
+        if (res.botUrl) setBotUrl(res.botUrl);
+      } catch {
+        // Ignore initial check errors
+      }
+    }
+    checkStatus();
+  }, [getToken]);
 
   // Poll for connection status when botUrl is set/generated
   useEffect(() => {
@@ -17,27 +34,32 @@ export default function TelegramPage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await apiGet<{ connected: boolean }>("/api/telegram/connect");
+        const token = await getToken();
+        const res = await apiGet<{ connected: boolean }>("/api/telegram/connect", token);
         if (res.connected) {
           setConnected(true);
           clearInterval(interval);
         }
-      } catch (err) {
+      } catch {
         // Ignore polling errors
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [botUrl, connected]);
+  }, [botUrl, connected, getToken]);
 
   const handleConnect = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiPost<{ botUrl: string; connected: boolean }>("/api/telegram/connect", {});
+      const token = await getToken();
+      const res = await apiPost<{ botUrl: string; connected: boolean }>("/api/telegram/connect", {}, token);
       setBotUrl(res.botUrl);
-      // Automatically open in new tab
-      window.open(res.botUrl, "_blank");
+      if (res.connected) {
+        setConnected(true);
+      } else {
+        window.open(res.botUrl, "_blank");
+      }
     } catch (err) {
       console.error("Failed to get Telegram link", err);
       setError("Failed to generate Telegram link. Please try again.");

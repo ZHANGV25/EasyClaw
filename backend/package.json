@@ -15,6 +15,7 @@
     "@langchain/core": "^0.3.38",
     "aws-cdk-lib": "^2.173.2",
     "constructs": "^10.4.2",
+    "grammy": "^1.40.1",
     "pg": "^8.13.1",
     "stripe": "^17.5.0",
     "svix": "^1.86.0",
