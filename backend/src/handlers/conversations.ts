@@ -6,6 +6,64 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     try {
         const userId = await requireAuth(event);
         const method = event.httpMethod;
+        const pathParams = event.pathParameters;
+
+        // GET /api/conversations/{id}/messages — fetch message history
+        if (method === 'GET' && pathParams?.id) {
+            const conversationId = pathParams.id;
+            const limit = parseInt(event.queryStringParameters?.limit || '50');
+            const before = event.queryStringParameters?.before; // cursor: message ID
+
+            // Verify conversation belongs to user
+            const convCheck = await query(
+                `SELECT id FROM conversations WHERE id = $1 AND user_id = $2`,
+                [conversationId, userId]
+            );
+            if (convCheck.rowCount === 0) {
+                return { statusCode: 404, headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify({ error: "Conversation not found" }) };
+            }
+
+            let messagesQuery: string;
+            let params: any[];
+
+            if (before) {
+                // Cursor-based pagination: get messages older than the cursor
+                messagesQuery = `
+                    SELECT id, role, content, created_at
+                    FROM messages
+                    WHERE conversation_id = $1
+                      AND created_at < (SELECT created_at FROM messages WHERE id = $2)
+                    ORDER BY created_at DESC
+                    LIMIT $3`;
+                params = [conversationId, before, limit + 1];
+            } else {
+                messagesQuery = `
+                    SELECT id, role, content, created_at
+                    FROM messages
+                    WHERE conversation_id = $1
+                    ORDER BY created_at DESC
+                    LIMIT $2`;
+                params = [conversationId, limit + 1];
+            }
+
+            const res = await query(messagesQuery, params);
+            const hasMore = res.rows.length > limit;
+            const rows = hasMore ? res.rows.slice(0, limit) : res.rows;
+
+            // Reverse to chronological order
+            const messages = rows.reverse().map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                createdAt: m.created_at,
+            }));
+
+            return {
+                statusCode: 200,
+                headers: { "Access-Control-Allow-Origin": "*" },
+                body: JSON.stringify({ messages, hasMore }),
+            };
+        }
 
         if (method === 'GET') {
             // List conversations with last message via LATERAL JOIN (single query)

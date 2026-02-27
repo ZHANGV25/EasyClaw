@@ -340,6 +340,11 @@ export class BackendStack extends cdk.Stack {
     conversationsResource.addMethod('PATCH', new apigateway.LambdaIntegration(conversationsLambda));
     conversationsResource.addMethod('DELETE', new apigateway.LambdaIntegration(conversationsLambda));
 
+    // /api/conversations/{id}/messages (GET) — fetch message history
+    const conversationIdResource = conversationsResource.addResource('{id}');
+    const messagesResource = conversationIdResource.addResource('messages');
+    messagesResource.addMethod('GET', new apigateway.LambdaIntegration(conversationsLambda));
+
     // Stripe webhook (no auth — Stripe signature verification instead)
     const webhooksResource = apiRoot.addResource('webhooks');
     const stripeWebhook = webhooksResource.addResource('stripe');
