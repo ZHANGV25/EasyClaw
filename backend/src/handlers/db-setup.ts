@@ -11,14 +11,28 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'users' AND column_name = 'id' AND data_type = 'uuid'
     ) THEN
-        -- Drop foreign keys first
+        -- Drop foreign key constraints first
+        ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_user_id_fkey;
+        ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_user_id_fkey;
+        ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_user_id_fkey;
+        ALTER TABLE memories DROP CONSTRAINT IF EXISTS memories_user_id_fkey;
+        ALTER TABLE reminders DROP CONSTRAINT IF EXISTS reminders_user_id_fkey;
+
+        -- Alter column types
+        ALTER TABLE users ALTER COLUMN id TYPE TEXT;
         ALTER TABLE conversations ALTER COLUMN user_id TYPE TEXT;
         ALTER TABLE jobs ALTER COLUMN user_id TYPE TEXT;
         ALTER TABLE transactions ALTER COLUMN user_id TYPE TEXT;
         ALTER TABLE memories ALTER COLUMN user_id TYPE TEXT;
         ALTER TABLE reminders ALTER COLUMN user_id TYPE TEXT;
-        -- Change primary key
-        ALTER TABLE users ALTER COLUMN id TYPE TEXT;
+
+        -- Re-add foreign key constraints
+        ALTER TABLE conversations ADD CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        ALTER TABLE jobs ADD CONSTRAINT jobs_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        ALTER TABLE transactions ADD CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        ALTER TABLE memories ADD CONSTRAINT memories_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        ALTER TABLE reminders ADD CONSTRAINT reminders_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
         RAISE NOTICE 'Migrated users.id and user_id columns from UUID to TEXT';
     END IF;
 END $$;
