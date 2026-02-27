@@ -11,7 +11,7 @@ import { ApiError } from "@/components/ApiError";
 
 interface UserData {
   creditsBalance: number;
-  container: {
+  container?: {
     status: "RUNNING" | "SLEEPING" | "PROVISIONING" | "STOPPED";
   };
 }
@@ -147,15 +147,13 @@ export default function DashboardPage() {
               Assistant Status
             </h3>
             <div className="flex items-center gap-2 mb-1">
-              <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${getStatusColor(user?.container.status || "")}`} />
+              <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${getStatusColor(user?.container?.status || "RUNNING")}`} />
               <span className="text-lg font-semibold text-[var(--color-text-primary)]">
-                {user?.container.status}
+                {user?.container?.status || "RUNNING"}
               </span>
             </div>
             <div className="text-sm text-[var(--color-text-muted)]">
-              {user?.container.status === "SLEEPING" 
-                ? "Wakes up automatically when you chat."
-                : "Ready to process tasks."}
+              Ready to process tasks.
             </div>
           </div>
 
