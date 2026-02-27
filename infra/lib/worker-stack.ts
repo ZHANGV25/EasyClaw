@@ -123,6 +123,7 @@ export class WorkerStack extends cdk.Stack {
       desiredCount: 2,  // Warm pool: always 2 ready
       minHealthyPercent: 100,
       maxHealthyPercent: 200,
+      assignPublicIp: true,  // Required: default VPC has no NAT, tasks need internet for ECR
       enableExecuteCommand: true,
     });
 
