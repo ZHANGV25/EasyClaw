@@ -50,6 +50,11 @@ interface OpenClawResult {
   error?: string;
 }
 
+interface OpenClawCallbacks {
+  onScreenshot?: (base64Data: string) => void;
+  onProgress?: (message: string) => void;
+}
+
 async function waitForOpenClaw(): Promise<void> {
   const maxRetries = 30;
   for (let i = 0; i < maxRetries; i++) {
@@ -69,7 +74,7 @@ async function waitForOpenClaw(): Promise<void> {
   throw new Error('OpenClaw gateway did not become available');
 }
 
-function sendToOpenClaw(job: Job): Promise<OpenClawResult> {
+function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenClawResult> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(OPENCLAW_WS_URL);
     const timeout = setTimeout(() => {
@@ -92,10 +97,22 @@ function sendToOpenClaw(job: Job): Promise<OpenClawResult> {
         switch (msg.type) {
           case 'screenshot':
             screenshots.push(msg.data);
+            // Fire-and-forget callback for live streaming
+            if (callbacks?.onScreenshot) {
+              try { callbacks.onScreenshot(msg.data); } catch (e) {
+                console.error(`[Job ${job.id}] onScreenshot callback error:`, e);
+              }
+            }
             break;
 
           case 'progress':
             console.log(`[Job ${job.id}] Progress: ${msg.message}`);
+            // Fire-and-forget callback for live progress
+            if (callbacks?.onProgress) {
+              try { callbacks.onProgress(msg.message); } catch (e) {
+                console.error(`[Job ${job.id}] onProgress callback error:`, e);
+              }
+            }
             break;
 
           case 'complete':
@@ -193,21 +210,37 @@ async function main() {
         console.log(`[Adapter] Processing job ${job.id} (${job.type})`);
 
         try {
-          const result = await sendToOpenClaw(job);
+          // Define live-streaming callbacks
+          let screenshotIndex = 0;
+          const callbacks: OpenClawCallbacks = {
+            onScreenshot: (base64Data: string) => {
+              screenshotIndex++;
+              const screenshotKey = `screenshots/${job.id}/latest.png`;
+              const buffer = Buffer.from(base64Data, 'base64');
 
-          // Upload screenshots to S3 if any
-          if (result.screenshots && result.screenshots.length > 0) {
-            const screenshotKeys: string[] = [];
-            for (let i = 0; i < result.screenshots.length; i++) {
-              const key = `screenshots/${job.user_id}/${job.id}/${i}.png`;
-              // S3Manager doesn't have a raw upload method, so we'll include
-              // screenshot data in the result payload for now.
-              screenshotKeys.push(key);
-            }
-            if (result.output) {
-              result.output.screenshotKeys = screenshotKeys;
-            }
-          }
+              // Fire-and-forget: upload to S3 + update DB progress
+              Promise.all([
+                s3.uploadBuffer(screenshotKey, buffer, 'image/png'),
+                db.updateJobProgress(job.id, {
+                  screenshotKey,
+                  screenshotUpdatedAt: new Date().toISOString(),
+                  screenshotIndex,
+                }),
+              ]).catch((err) => {
+                console.error(`[Job ${job.id}] Failed to stream screenshot:`, err);
+              });
+            },
+            onProgress: (message: string) => {
+              db.updateJobProgress(job.id, {
+                action: message,
+                actionUpdatedAt: new Date().toISOString(),
+              }).catch((err) => {
+                console.error(`[Job ${job.id}] Failed to update progress:`, err);
+              });
+            },
+          };
+
+          const result = await sendToOpenClaw(job, callbacks);
 
           if (result.success) {
             await db.completeJob(job.id, {

@@ -1,57 +1,52 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { BrowserFrame } from "@/types/browser";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { BrowserStatus } from "@/types/browser";
+import { apiGet } from "@/lib/api";
+import { useAuthToken } from "@/hooks/useAuthToken";
 
 interface BrowserViewerProps {
-  initialUrl?: string;
-  isLive?: boolean;
+  onStatusChange?: (status: BrowserStatus) => void;
 }
 
-export function BrowserViewer({ initialUrl = "about:blank", isLive = false }: BrowserViewerProps) {
-  const [frame, setFrame] = useState<BrowserFrame | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [url, setUrl] = useState(initialUrl);
+export function BrowserViewer({ onStatusChange }: BrowserViewerProps) {
+  const [status, setStatus] = useState<BrowserStatus | null>(null);
+  const lastScreenshotAtRef = useRef<string | null>(null);
+  const getToken = useAuthToken();
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const fetchStatus = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const data = await apiGet<BrowserStatus>("/api/browser/status", token);
+      setStatus(data);
+      onStatusChange?.(data);
+    } catch (e) {
+      console.error("Failed to fetch browser status", e);
+    }
+  }, [getToken, onStatusChange]);
 
   useEffect(() => {
-    if (!isLive) return;
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 1500);
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
 
-    // Connect to SSE stream
-    const eventSource = new EventSource("/api/browser/stream");
-    eventSourceRef.current = eventSource;
+  const isLive = status?.active ?? false;
+  const url = status?.currentUrl || "about:blank";
+  const hasNewScreenshot =
+    status?.screenshotUrl && status.screenshotUpdatedAt !== lastScreenshotAtRef.current;
 
-    eventSource.onopen = () => {
-      setIsConnected(true);
-    };
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setFrame(data);
-        if (data.url) setUrl(data.url);
-      } catch (e) {
-        console.error("Failed to parse browser frame", e);
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("Browser stream error", err);
-      setIsConnected(false);
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-      setIsConnected(false);
-    };
-  }, [isLive]);
+  // Track latest screenshot timestamp to avoid unnecessary re-renders
+  useEffect(() => {
+    if (status?.screenshotUpdatedAt) {
+      lastScreenshotAtRef.current = status.screenshotUpdatedAt;
+    }
+  }, [status?.screenshotUpdatedAt]);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#1e1e1e] rounded-xl overflow-hidden shadow-2xl border border-white/10">
-      
-      {/* ─── Browser Chrome ─── */}
+
+      {/* Browser Chrome */}
       <div className="flex items-center gap-4 px-4 py-3 bg-[#2a2a2a] border-b border-black/20">
         {/* Traffic Lights */}
         <div className="flex items-center gap-2">
@@ -79,17 +74,17 @@ export function BrowserViewer({ initialUrl = "about:blank", isLive = false }: Br
                 )}
             </div>
           </div>
-          
+
            <div className="w-4" /> {/* Spacer */}
         </div>
       </div>
 
-      {/* ─── Viewport ─── */}
+      {/* Viewport */}
       <div className="flex-1 relative bg-white w-full h-full flex items-center justify-center overflow-hidden">
-        {isConnected && frame?.screenshotBase64 ? (
-            <img 
-                src={frame.screenshotBase64} 
-                alt="Live Browser View" 
+        {status?.screenshotUrl ? (
+            <img
+                src={status.screenshotUrl}
+                alt="Live Browser View"
                 className="w-full h-full object-contain"
             />
         ) : (
@@ -99,11 +94,29 @@ export function BrowserViewer({ initialUrl = "about:blank", isLive = false }: Br
             </div>
         )}
 
-        {/* Status Overlay */}
-        {frame?.action && (
+        {/* Completion / Failure Overlay */}
+        {status?.jobStatus === "COMPLETED" && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <div className="bg-green-900/80 backdrop-blur text-green-100 px-6 py-4 rounded-xl border border-green-500/30 text-center">
+                    <p className="text-lg font-semibold">Task Complete</p>
+                    <p className="text-sm text-green-300 mt-1">The agent has finished its work.</p>
+                </div>
+            </div>
+        )}
+        {status?.jobStatus === "FAILED" && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <div className="bg-red-900/80 backdrop-blur text-red-100 px-6 py-4 rounded-xl border border-red-500/30 text-center">
+                    <p className="text-lg font-semibold">Task Failed</p>
+                    <p className="text-sm text-red-300 mt-1">Something went wrong. Check the chat for details.</p>
+                </div>
+            </div>
+        )}
+
+        {/* Action Overlay */}
+        {status?.action && (
             <div className="absolute bottom-4 left-4 bg-black/80 backdrop-blur text-white px-3 py-1.5 rounded-lg text-xs font-mono border border-white/10 shadow-lg animate-fade-in">
-                {frame.status === "interacting" && <span className="mr-2">⚡</span>}
-                {frame.action}
+                <span className="mr-2">&#9889;</span>
+                {status.action}
             </div>
         )}
       </div>

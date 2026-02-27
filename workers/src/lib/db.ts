@@ -97,6 +97,13 @@ export class Database {
     return result.rows[0] || null;
   }
 
+  async updateJobProgress(jobId: string, progress: Record<string, any>): Promise<void> {
+    await this.pool.query(
+      `UPDATE jobs SET result_payload = jsonb_set(COALESCE(result_payload, '{}'), '{_progress}', $1::jsonb), updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(progress), jobId]
+    );
+  }
+
   async completeJob(jobId: string, resultPayload: Record<string, any>): Promise<void> {
     await this.pool.query(
       `UPDATE jobs

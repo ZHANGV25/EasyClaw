@@ -76,6 +76,15 @@ export class S3Manager {
     console.log(`[S3] Uploaded ${zipBuffer.length} bytes to ${s3Key}`);
   }
 
+  async uploadBuffer(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }));
+  }
+
   async cleanup(path: string): Promise<void> {
     try {
       await rm(path, { recursive: true, force: true });

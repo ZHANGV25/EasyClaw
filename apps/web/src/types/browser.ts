@@ -8,6 +8,10 @@ export interface BrowserFrame {
 
 export interface BrowserStatus {
   active: boolean;
+  jobId?: string;
+  jobStatus?: "RUNNING" | "COMPLETED" | "FAILED";
   currentUrl?: string;
-  lastScreenshotAt?: string;
+  action?: string;
+  screenshotUrl?: string;
+  screenshotUpdatedAt?: string;
 }

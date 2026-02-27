@@ -26,6 +26,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
     lastUsage,
     sendMessage,
     loadMoreHistory,
+    lastJobTriggered,
   } = useStreamChat(conversationId);
 
   const [input, setInput] = useState("");
@@ -56,6 +57,14 @@ export default function ChatView({ conversationId }: ChatViewProps) {
       setCredits((prev) => Math.max(0, prev - lastUsage.costUsd));
     }
   }, [lastUsage]);
+
+  // Auto-open browser panel when a COMPUTER_USE job is triggered
+  useEffect(() => {
+    if (lastJobTriggered) {
+      setOpenArtifact(null);
+      setIsBrowserOpen(true);
+    }
+  }, [lastJobTriggered]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -398,7 +407,7 @@ export default function ChatView({ conversationId }: ChatViewProps) {
                    </button>
                 </div>
                 <div className="flex-1 overflow-hidden relative">
-                   <BrowserViewer isLive={true} />
+                   <BrowserViewer />
                 </div>
              </div>
           </div>

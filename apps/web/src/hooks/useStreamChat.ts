@@ -33,6 +33,11 @@ interface HistoryResponse {
   hasMore: boolean;
 }
 
+export interface JobTriggered {
+  jobId: string;
+  type: string;
+}
+
 interface UseStreamChatReturn {
   messages: ChatMessage[];
   isStreaming: boolean;
@@ -42,6 +47,7 @@ interface UseStreamChatReturn {
   showAddCreditsModal: boolean;
   setShowAddCreditsModal: (show: boolean) => void;
   lastUsage: UsageData | null;
+  lastJobTriggered: JobTriggered | null;
   sendMessage: (content: string) => Promise<void>;
   loadMoreHistory: () => Promise<void>;
 }
@@ -62,6 +68,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
   const [lastUsage, setLastUsage] = useState<UsageData | null>(null);
+  const [lastJobTriggered, setLastJobTriggered] = useState<JobTriggered | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const assistantIdRef = useRef<string | null>(null);
   const loadedConvRef = useRef<string | null>(null);
@@ -252,8 +259,8 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
             )
           );
 
-          if (data.status === "QUEUED") {
-            // If a job was started, we could optionally poll for updates here
+          if (data.status === "QUEUED" && data.jobId) {
+            setLastJobTriggered({ jobId: data.jobId, type: data.jobType || "COMPUTER_USE" });
           }
 
           // If this was a new conversation, the backend should return the ID
@@ -298,6 +305,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
     showAddCreditsModal,
     setShowAddCreditsModal,
     lastUsage,
+    lastJobTriggered,
     sendMessage,
     loadMoreHistory,
   };

@@ -231,6 +231,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'handler',
     });
     db.secret?.grantRead(browserLambda);
+    stateSnapshotBucket.grantRead(browserLambda);
 
     const onboardingLambda = new nodejs.NodejsFunction(this, 'OnboardingLambda', {
       ...commonLambdaProps,
