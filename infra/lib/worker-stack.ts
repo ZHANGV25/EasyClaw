@@ -5,6 +5,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as appscaling from 'aws-cdk-lib/aws-applicationautoscaling';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import { Construct } from 'constructs';
 
 export interface WorkerStackProps extends cdk.StackProps {
@@ -93,6 +94,7 @@ export class WorkerStack extends cdk.Stack {
     const container = taskDefinition.addContainer('worker', {
       image: ecs.ContainerImage.fromAsset('../workers', {
         file: 'Dockerfile.openclaw',
+        platform: Platform.LINUX_AMD64,
       }),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'worker',
