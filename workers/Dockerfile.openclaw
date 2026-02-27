@@ -65,5 +65,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -sf http://127.0.0.1:18789/ || exit 1
 
 ENV OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
+# Internal-only token for gateway <-> adapter communication within the container
+ENV OPENCLAW_GATEWAY_TOKEN=internal-container-token
 
+# The base OpenClaw image has an ENTRYPOINT that validates env vars.
+# Override it so we control startup via /start.sh.
+ENTRYPOINT []
 CMD ["/start.sh"]

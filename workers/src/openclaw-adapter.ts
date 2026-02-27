@@ -25,7 +25,11 @@ const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 const S3_BUCKET = process.env.S3_BUCKET || 'easyclaw-state';
 const WORKER_ID = process.env.ECS_TASK_ARN || `worker-${Date.now()}`;
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '5000');
-const OPENCLAW_WS_URL = process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789';
+const OPENCLAW_GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789';
+const OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const OPENCLAW_WS_URL = OPENCLAW_GATEWAY_TOKEN
+  ? `${OPENCLAW_GATEWAY_URL}?token=${OPENCLAW_GATEWAY_TOKEN}`
+  : OPENCLAW_GATEWAY_URL;
 const OPENCLAW_TASK_TIMEOUT_MS = parseInt(process.env.OPENCLAW_TASK_TIMEOUT_MS || '300000'); // 5 min
 
 if (!DATABASE_URL) {

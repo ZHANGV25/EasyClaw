@@ -109,11 +109,11 @@ export class WorkerStack extends cdk.Stack {
         ...(props.anthropicApiKey ? { ANTHROPIC_API_KEY: props.anthropicApiKey } : {}),
       },
       healthCheck: {
-        command: ['CMD-SHELL', 'node -e "const ws=require(\'ws\');const c=new ws(\'ws://127.0.0.1:18789\');c.on(\'open\',()=>{c.close();process.exit(0)});c.on(\'error\',()=>process.exit(1));setTimeout(()=>process.exit(1),5000)"'],
+        command: ['CMD-SHELL', 'curl -sf http://127.0.0.1:18789/ || exit 1'],
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(10),
         retries: 3,
-        startPeriod: cdk.Duration.seconds(60),
+        startPeriod: cdk.Duration.seconds(120),
       },
     });
 
