@@ -21,10 +21,12 @@ RUN npm run build
 
 # ── Stage 2: Production image ───────────────────────────────
 # coollabsio/openclaw — community-maintained, auto-updated Docker image
-# Includes OpenClaw runtime, browser (Playwright/Chromium), Node 22+
-# Published for amd64 and arm64
+# Includes OpenClaw runtime + Node 22. Browser must be installed separately.
 # Source: https://github.com/coollabsio/openclaw
 FROM coollabsio/openclaw:latest
+
+# Install Playwright Chromium + system deps for headless browsing
+RUN cd /opt/openclaw/app && npx playwright install --with-deps chromium
 
 WORKDIR /sidecar
 
