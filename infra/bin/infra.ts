@@ -15,6 +15,8 @@ const env = {
 
 const databaseUrl = process.env.DATABASE_URL || '';
 const s3Bucket = process.env.S3_BUCKET || 'easyclaw-state';
+const vpcId = process.env.VPC_ID || '';
+const dbSecurityGroupId = process.env.DB_SECURITY_GROUP_ID || '';
 
 // Backend Stack (VPC, RDS, API Gateway, Lambda functions, S3)
 // This includes both the original backend API and the job queue API
@@ -36,6 +38,8 @@ const workerStack = new WorkerStack(app, 'EasyClaw-Worker-Stack', {
   description: 'EasyClaw Worker Pool with Auto-Scaling',
   databaseUrl,
   s3Bucket,
+  vpcId,
+  dbSecurityGroupId,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });
 

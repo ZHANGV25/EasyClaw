@@ -183,6 +183,17 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             [finalConversationId, message]
         );
 
+        // ── Load conversation history for context ──
+        const historyRes = await query(
+            `SELECT role, content FROM messages
+             WHERE conversation_id = $1
+             ORDER BY created_at DESC
+             LIMIT 20`,
+            [finalConversationId]
+        );
+        // Reverse to chronological order (query is DESC)
+        const history = historyRes.rows.reverse();
+
         // ── Invoke model ────────────────────────
         const systemPrompt = `You are EasyClaw, an AI assistant.
 Your goal is to help the user.
@@ -197,7 +208,10 @@ If the user asks a simple question, answer directly. Be concise.`;
 
         const messages = [
             new SystemMessage(systemPrompt),
-            new HumanMessage(message)
+            // Include conversation history (user message already stored above, so it's in history)
+            ...history.map((m: any) =>
+                m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)
+            ),
         ];
 
         console.log("Invoking model...");

@@ -11,6 +11,10 @@ import { Construct } from 'constructs';
 export interface WorkerStackProps extends cdk.StackProps {
   databaseUrl: string;
   s3Bucket: string;
+  /** VPC ID where RDS lives (backend stack VPC) */
+  vpcId: string;
+  /** Security group ID of the RDS instance */
+  dbSecurityGroupId: string;
   /** Anthropic API key for OpenClaw LLM calls (if not using Bedrock) */
   anthropicApiKey?: string;
 }
@@ -19,10 +23,21 @@ export class WorkerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WorkerStackProps) {
     super(scope, id, props);
 
-    // VPC (use default or create new)
-    const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', {
-      isDefault: true,
+    // Use the same VPC as the backend (where RDS lives)
+    const vpc = ec2.Vpc.fromLookup(this, 'BackendVpc', {
+      vpcId: props.vpcId,
     });
+
+    // Worker Security Group — allowed to connect to RDS
+    const workerSg = new ec2.SecurityGroup(this, 'WorkerSecurityGroup', {
+      vpc,
+      description: 'ECS worker tasks - allowed to connect to RDS',
+      allowAllOutbound: true,
+    });
+
+    // Allow workers to connect to RDS on port 5432
+    const dbSg = ec2.SecurityGroup.fromSecurityGroupId(this, 'DbSecurityGroup', props.dbSecurityGroupId);
+    dbSg.addIngressRule(workerSg, ec2.Port.tcp(5432), 'Allow ECS workers to connect to RDS');
 
     // ECS Cluster
     const cluster = new ecs.Cluster(this, 'WorkerCluster', {
@@ -114,7 +129,7 @@ export class WorkerStack extends cdk.Stack {
         AWS_PROFILE: 'default',
         AWS_REGION: 'us-east-1',
         BEDROCK_PROVIDER_FILTER: 'anthropic',
-        OPENCLAW_PRIMARY_MODEL: 'amazon-bedrock/us.anthropic.claude-sonnet-4-6-v1:0',
+        OPENCLAW_PRIMARY_MODEL: 'amazon-bedrock/us.anthropic.claude-sonnet-4-6',
         SYNTHETIC_API_KEY: 'bedrock-via-iam-role',
         ...(props.anthropicApiKey
           ? { ANTHROPIC_API_KEY: props.anthropicApiKey }
@@ -137,7 +152,9 @@ export class WorkerStack extends cdk.Stack {
       desiredCount: 2,  // Warm pool: always 2 ready
       minHealthyPercent: 100,
       maxHealthyPercent: 200,
-      assignPublicIp: true,  // Required: default VPC has no NAT, tasks need internet for ECR
+      assignPublicIp: false,  // Private subnets with NAT gateway
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [workerSg],
       enableExecuteCommand: true,
     });
 

@@ -447,6 +447,8 @@ export class BackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DbSetupFunctionName', { value: dbSetupLambda.functionName });
     new cdk.CfnOutput(this, 'UserDataBucketName', { value: userDataBucket.bucketName });
     new cdk.CfnOutput(this, 'StateBucketName', { value: stateSnapshotBucket.bucketName });
+    new cdk.CfnOutput(this, 'VpcId', { value: vpc.vpcId, description: 'Backend VPC ID' });
+    new cdk.CfnOutput(this, 'DbSecurityGroupId', { value: dbSecurityGroup.securityGroupId, description: 'RDS Security Group ID' });
     new cdk.CfnOutput(this, 'CreateJobFunctionArn', {
       value: createJobFn.functionArn,
       description: 'Create Job Lambda ARN',

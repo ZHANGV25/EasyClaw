@@ -12,6 +12,7 @@ export class Database {
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
+      ssl: { rejectUnauthorized: false },  // RDS requires SSL
     });
   }
 
