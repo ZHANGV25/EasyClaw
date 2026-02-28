@@ -17,6 +17,7 @@
 import { Database } from './lib/db.js';
 import { S3Manager } from './lib/s3.js';
 import { WebSocket } from 'ws';
+import { randomUUID } from 'crypto';
 import type { Job } from './types.js';
 
 // ─── Config ────────────────────────────────────
@@ -130,11 +131,16 @@ function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenCl
           connected = true;
           console.log(`[Job ${job.id}] Connected to OpenClaw (protocol ${msg.payload.protocol})`);
 
-          // Now send the agent task
+          // Send task via chat.send (the correct gateway RPC method)
           const taskPayload = mapJobToOpenClawTask(job);
           const prompt = taskPayload.instruction || taskPayload.query || taskPayload.message || JSON.stringify(taskPayload);
-          console.log(`[Job ${job.id}] Sending agent.chat prompt: ${prompt.substring(0, 100)}...`);
-          sendReq('agent.chat', { message: prompt });
+          const runId = randomUUID();
+          console.log(`[Job ${job.id}] Sending chat.send (runId=${runId}): ${prompt.substring(0, 100)}...`);
+          sendReq('chat.send', {
+            sessionKey: `agent:main:main`,
+            message: prompt,
+            idempotencyKey: runId,
+          });
           return;
         }
 
@@ -146,15 +152,95 @@ function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenCl
           return;
         }
 
-        // ── Agent events ───────────────────────────
+        // ── Events ──────────────────────────────────
         if (msg.type === 'event') {
           const ev = msg.event || '';
           const payload = msg.payload || {};
 
-          // Screenshot events
+          // Chat completion events (state: "final" | "error" | "aborted")
+          if (ev === 'chat') {
+            if (payload.state === 'final') {
+              console.log(`[Job ${job.id}] Chat final received`);
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                success: true,
+                output: payload.message || payload,
+                screenshots,
+              });
+              return;
+            }
+            if (payload.state === 'error') {
+              console.log(`[Job ${job.id}] Chat error received`);
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                success: false,
+                error: payload.message?.content || payload.error || 'Agent error',
+                screenshots,
+              });
+              return;
+            }
+            if (payload.state === 'aborted') {
+              console.log(`[Job ${job.id}] Chat aborted`);
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                success: false,
+                error: 'Agent run was aborted',
+                screenshots,
+              });
+              return;
+            }
+            // state: "delta" — streaming text, ignore
+            return;
+          }
+
+          // Agent runtime events (screenshots, progress, tool calls)
+          if (ev === 'agent') {
+            const stream = payload.stream || '';
+            const agentData = payload.data || {};
+
+            // Screenshot from browser
+            if (stream === 'screenshot' || stream === 'browser.screenshot') {
+              const b64 = agentData.data || agentData.base64;
+              if (b64) {
+                screenshots.push(b64);
+                if (callbacks?.onScreenshot) {
+                  try { callbacks.onScreenshot(b64); } catch (e) {
+                    console.error(`[Job ${job.id}] onScreenshot error:`, e);
+                  }
+                }
+              }
+            }
+
+            // Tool calls — report as progress
+            if (stream === 'tool' && agentData.text) {
+              const toolMsg = agentData.text.substring(0, 200);
+              console.log(`[Job ${job.id}] Tool: ${toolMsg}`);
+              if (callbacks?.onProgress) {
+                try { callbacks.onProgress(toolMsg); } catch (e) {
+                  console.error(`[Job ${job.id}] onProgress error:`, e);
+                }
+              }
+            }
+
+            // Assistant streaming text — report as progress
+            if (stream === 'assistant' && agentData.delta) {
+              // Don't flood logs with every delta, just track it
+            }
+
+            // Lifecycle events
+            if (stream === 'lifecycle') {
+              console.log(`[Job ${job.id}] Lifecycle: ${JSON.stringify(agentData).substring(0, 200)}`);
+            }
+            return;
+          }
+
+          // Screenshot events (alternative event names)
           if (ev === 'agent.screenshot' || ev === 'browser.screenshot') {
-            if (payload.data || payload.base64) {
-              const b64 = payload.data || payload.base64;
+            const b64 = payload.data || payload.base64;
+            if (b64) {
               screenshots.push(b64);
               if (callbacks?.onScreenshot) {
                 try { callbacks.onScreenshot(b64); } catch (e) {
@@ -162,84 +248,33 @@ function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenCl
                 }
               }
             }
-          }
-
-          // Progress / activity events
-          if (ev.startsWith('agent.') && payload.message) {
-            console.log(`[Job ${job.id}] Progress: ${payload.message}`);
-            if (callbacks?.onProgress) {
-              try { callbacks.onProgress(payload.message); } catch (e) {
-                console.error(`[Job ${job.id}] onProgress error:`, e);
-              }
-            }
-          }
-
-          // Agent run completed
-          if (ev === 'agent.run.completed' || ev === 'agent.done') {
-            clearTimeout(timeout);
-            ws.close();
-            resolve({
-              success: true,
-              output: payload.result || payload.output || payload,
-              screenshots,
-            });
             return;
           }
 
-          // Agent error
-          if (ev === 'agent.run.error' || ev === 'agent.error') {
-            clearTimeout(timeout);
-            ws.close();
-            resolve({
-              success: false,
-              error: payload.error || payload.message || 'Agent error',
-              screenshots,
-            });
+          // Ignore health, presence, heartbeat events
+          if (ev === 'health' || ev === 'presence' || ev === 'heartbeat') {
             return;
           }
+
+          // Log any unhandled events for debugging
+          console.log(`[Job ${job.id}] Unhandled event: ${ev} ${JSON.stringify(payload).substring(0, 200)}`);
+          return;
         }
 
-        // ── Response to agent.chat ─────────────────
+        // ── Response to chat.send ────────────────────
         if (msg.type === 'res' && connected) {
           if (msg.ok) {
-            // agent.chat accepted — results come via events
-            console.log(`[Job ${job.id}] agent.chat accepted: ${JSON.stringify(msg.payload || {}).substring(0, 200)}`);
+            console.log(`[Job ${job.id}] chat.send accepted: ${JSON.stringify(msg.payload || {}).substring(0, 200)}`);
           } else {
             clearTimeout(timeout);
             ws.close();
             resolve({
               success: false,
-              error: `agent.chat failed: ${JSON.stringify(msg.error)}`,
+              error: `chat.send failed: ${JSON.stringify(msg.error)}`,
               screenshots,
             });
           }
           return;
-        }
-
-        // Legacy message types (in case gateway sends simpler format)
-        switch (msg.type) {
-          case 'screenshot':
-            screenshots.push(msg.data);
-            if (callbacks?.onScreenshot) {
-              try { callbacks.onScreenshot(msg.data); } catch (e) { /* ignore */ }
-            }
-            break;
-          case 'progress':
-            console.log(`[Job ${job.id}] Progress: ${msg.message}`);
-            if (callbacks?.onProgress) {
-              try { callbacks.onProgress(msg.message); } catch (e) { /* ignore */ }
-            }
-            break;
-          case 'complete':
-            clearTimeout(timeout);
-            ws.close();
-            resolve({ success: true, output: msg.result, screenshots });
-            break;
-          case 'error':
-            clearTimeout(timeout);
-            ws.close();
-            resolve({ success: false, error: msg.error || 'Unknown error', screenshots });
-            break;
         }
       } catch (parseErr) {
         console.error(`[Job ${job.id}] Failed to parse WS message:`, parseErr);

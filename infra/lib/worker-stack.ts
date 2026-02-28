@@ -90,6 +90,15 @@ export class WorkerStack extends cdk.Stack {
       ],
     }));
 
+    // Grant AWS Marketplace access (required by Bedrock for model subscriptions)
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      actions: [
+        'aws-marketplace:ViewSubscriptions',
+        'aws-marketplace:Subscribe',
+      ],
+      resources: ['*'],
+    }));
+
     // CloudWatch Log Group
     const logGroup = new logs.LogGroup(this, 'WorkerLogGroup', {
       logGroupName: '/ecs/easyclaw-workers',
