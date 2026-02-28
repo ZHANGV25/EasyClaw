@@ -87,60 +87,158 @@ function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenCl
     }, OPENCLAW_TASK_TIMEOUT_MS);
 
     const screenshots: string[] = [];
+    let connected = false;
+    let reqCounter = 0;
+    const nextId = () => `req-${++reqCounter}`;
+
+    // Send a typed WS request frame
+    function sendReq(method: string, params: Record<string, any>): string {
+      const id = nextId();
+      ws.send(JSON.stringify({ type: 'req', id, method, params }));
+      return id;
+    }
 
     ws.on('open', () => {
-      // Map EasyClaw job types to an OpenClaw task message
-      const taskMessage = mapJobToOpenClawTask(job);
-      ws.send(JSON.stringify(taskMessage));
+      console.log(`[Job ${job.id}] WebSocket open, waiting for challenge...`);
     });
 
     ws.on('message', (data) => {
       try {
         const msg = JSON.parse(data.toString());
 
-        switch (msg.type) {
-          case 'screenshot':
-            screenshots.push(msg.data);
-            // Fire-and-forget callback for live streaming
-            if (callbacks?.onScreenshot) {
-              try { callbacks.onScreenshot(msg.data); } catch (e) {
-                console.error(`[Job ${job.id}] onScreenshot callback error:`, e);
+        // ── Gateway handshake ──────────────────────
+        if (msg.type === 'event' && msg.event === 'connect.challenge') {
+          console.log(`[Job ${job.id}] Got challenge, sending connect...`);
+          sendReq('connect', {
+            minProtocol: 3,
+            maxProtocol: 3,
+            client: { id: 'easyclaw-adapter', version: '1.0.0', platform: 'linux', mode: 'operator' },
+            role: 'operator',
+            scopes: ['operator.read', 'operator.write'],
+            caps: [],
+            commands: [],
+            permissions: {},
+            auth: { token: OPENCLAW_GATEWAY_TOKEN },
+            locale: 'en-US',
+            userAgent: 'easyclaw-adapter/1.0.0',
+          });
+          return;
+        }
+
+        // ── Connect response (hello-ok) ────────────
+        if (msg.type === 'res' && msg.ok && msg.payload?.type === 'hello-ok') {
+          connected = true;
+          console.log(`[Job ${job.id}] Connected to OpenClaw (protocol ${msg.payload.protocol})`);
+
+          // Now send the agent task
+          const taskPayload = mapJobToOpenClawTask(job);
+          const prompt = taskPayload.instruction || taskPayload.query || taskPayload.message || JSON.stringify(taskPayload);
+          console.log(`[Job ${job.id}] Sending agent.chat prompt: ${prompt.substring(0, 100)}...`);
+          sendReq('agent.chat', { message: prompt });
+          return;
+        }
+
+        // ── Connect error ──────────────────────────
+        if (msg.type === 'res' && !msg.ok && !connected) {
+          clearTimeout(timeout);
+          ws.close();
+          reject(new Error(`OpenClaw connect failed: ${JSON.stringify(msg.error)}`));
+          return;
+        }
+
+        // ── Agent events ───────────────────────────
+        if (msg.type === 'event') {
+          const ev = msg.event || '';
+          const payload = msg.payload || {};
+
+          // Screenshot events
+          if (ev === 'agent.screenshot' || ev === 'browser.screenshot') {
+            if (payload.data || payload.base64) {
+              const b64 = payload.data || payload.base64;
+              screenshots.push(b64);
+              if (callbacks?.onScreenshot) {
+                try { callbacks.onScreenshot(b64); } catch (e) {
+                  console.error(`[Job ${job.id}] onScreenshot error:`, e);
+                }
               }
             }
-            break;
+          }
 
-          case 'progress':
-            console.log(`[Job ${job.id}] Progress: ${msg.message}`);
-            // Fire-and-forget callback for live progress
+          // Progress / activity events
+          if (ev.startsWith('agent.') && payload.message) {
+            console.log(`[Job ${job.id}] Progress: ${payload.message}`);
             if (callbacks?.onProgress) {
-              try { callbacks.onProgress(msg.message); } catch (e) {
-                console.error(`[Job ${job.id}] onProgress callback error:`, e);
+              try { callbacks.onProgress(payload.message); } catch (e) {
+                console.error(`[Job ${job.id}] onProgress error:`, e);
               }
             }
-            break;
+          }
 
-          case 'complete':
+          // Agent run completed
+          if (ev === 'agent.run.completed' || ev === 'agent.done') {
             clearTimeout(timeout);
             ws.close();
             resolve({
               success: true,
-              output: msg.result,
+              output: payload.result || payload.output || payload,
               screenshots,
             });
-            break;
+            return;
+          }
 
-          case 'error':
+          // Agent error
+          if (ev === 'agent.run.error' || ev === 'agent.error') {
             clearTimeout(timeout);
             ws.close();
             resolve({
               success: false,
-              error: msg.error || 'Unknown OpenClaw error',
+              error: payload.error || payload.message || 'Agent error',
               screenshots,
             });
-            break;
+            return;
+          }
+        }
 
-          default:
-            // Accumulate any other messages
+        // ── Response to agent.chat ─────────────────
+        if (msg.type === 'res' && connected) {
+          if (msg.ok) {
+            // agent.chat accepted — results come via events
+            console.log(`[Job ${job.id}] agent.chat accepted: ${JSON.stringify(msg.payload || {}).substring(0, 200)}`);
+          } else {
+            clearTimeout(timeout);
+            ws.close();
+            resolve({
+              success: false,
+              error: `agent.chat failed: ${JSON.stringify(msg.error)}`,
+              screenshots,
+            });
+          }
+          return;
+        }
+
+        // Legacy message types (in case gateway sends simpler format)
+        switch (msg.type) {
+          case 'screenshot':
+            screenshots.push(msg.data);
+            if (callbacks?.onScreenshot) {
+              try { callbacks.onScreenshot(msg.data); } catch (e) { /* ignore */ }
+            }
+            break;
+          case 'progress':
+            console.log(`[Job ${job.id}] Progress: ${msg.message}`);
+            if (callbacks?.onProgress) {
+              try { callbacks.onProgress(msg.message); } catch (e) { /* ignore */ }
+            }
+            break;
+          case 'complete':
+            clearTimeout(timeout);
+            ws.close();
+            resolve({ success: true, output: msg.result, screenshots });
+            break;
+          case 'error':
+            clearTimeout(timeout);
+            ws.close();
+            resolve({ success: false, error: msg.error || 'Unknown error', screenshots });
             break;
         }
       } catch (parseErr) {
@@ -153,8 +251,11 @@ function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenCl
       reject(err);
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
       clearTimeout(timeout);
+      if (!connected) {
+        reject(new Error(`WebSocket closed before connect (code=${code} reason=${reason})`));
+      }
     });
   });
 }
