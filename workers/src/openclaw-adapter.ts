@@ -112,9 +112,9 @@ function sendToOpenClaw(job: Job, callbacks?: OpenClawCallbacks): Promise<OpenCl
           sendReq('connect', {
             minProtocol: 3,
             maxProtocol: 3,
-            client: { id: 'easyclaw-adapter', version: '1.0.0', platform: 'linux', mode: 'operator' },
+            client: { id: 'gateway-client', version: '1.0.0', platform: 'linux', mode: 'backend' },
             role: 'operator',
-            scopes: ['operator.read', 'operator.write'],
+            scopes: ['operator.admin'],
             caps: [],
             commands: [],
             permissions: {},
