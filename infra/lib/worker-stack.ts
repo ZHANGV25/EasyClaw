@@ -67,6 +67,7 @@ export class WorkerStack extends cdk.Stack {
       actions: [
         'bedrock:InvokeModel',
         'bedrock:InvokeModelWithResponseStream',
+        'bedrock:ListFoundationModels',
       ],
       resources: [
         `arn:aws:bedrock:*::foundation-model/*`,
