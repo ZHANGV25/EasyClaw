@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useConversations } from "@/contexts/ConversationsContext";
 import { useAuthToken } from "@/hooks/useAuthToken";
-import { BASE_URL } from "@/lib/api";
+import { BASE_URL, apiGet } from "@/lib/api";
 import { Artifact } from "@/types/artifacts";
 import { AgentStep } from "@/types/activity";
 
@@ -295,6 +295,77 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
     },
     [conversationId, router, refreshConversations, getToken]
   );
+
+  // Poll for job result when a job is triggered
+  useEffect(() => {
+    if (!lastJobTriggered) return;
+
+    const { jobId } = lastJobTriggered;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const token = await getToken();
+        if (!token || cancelled) return;
+        const data = await apiGet<{
+          id: string;
+          status: string;
+          result_payload?: { output?: any; error?: string; success?: boolean };
+        }>(`/api/jobs/${jobId}`, token);
+
+        if (cancelled) return;
+
+        if (data.status === "COMPLETED" || data.status === "FAILED") {
+          let content: string;
+          if (data.status === "COMPLETED" && data.result_payload) {
+            const output = data.result_payload.output;
+            if (typeof output === "string") {
+              content = output;
+            } else if (output?.content) {
+              content = output.content;
+            } else if (output?.message?.content) {
+              content = output.message.content;
+            } else {
+              content = JSON.stringify(output, null, 2);
+            }
+          } else if (data.status === "FAILED") {
+            content = `Task failed: ${data.result_payload?.error || "Unknown error"}`;
+          } else {
+            content = "Task completed.";
+          }
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `job-result-${jobId}`,
+              role: "assistant",
+              content,
+              timestamp: new Date(),
+            },
+          ]);
+          setLastJobTriggered(null);
+          return;
+        }
+
+        // Still running — poll again
+        if (!cancelled) {
+          setTimeout(poll, 3000);
+        }
+      } catch (err) {
+        console.error("Job poll error:", err);
+        if (!cancelled) {
+          setTimeout(poll, 5000);
+        }
+      }
+    };
+
+    // Start polling after a short delay
+    const timer = setTimeout(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lastJobTriggered, getToken]);
 
   return {
     messages,
