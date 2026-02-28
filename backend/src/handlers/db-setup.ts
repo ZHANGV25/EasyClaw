@@ -153,6 +153,20 @@ CREATE INDEX IF NOT EXISTS idx_reminders_user_status ON reminders(user_id, statu
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
+        const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event as any) || {};
+
+        // Reset stuck jobs if requested
+        if (body.action === 'reset-stuck-jobs') {
+            const res = await query(
+                `UPDATE jobs SET status = 'PENDING', worker_id = NULL, locked_at = NULL
+                 WHERE status = 'RUNNING' AND updated_at < NOW() - INTERVAL '5 minutes'`
+            );
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ message: `Reset ${res.rowCount} stuck jobs` }),
+            };
+        }
+
         // Run migration first (safe on fresh DBs — the DO block checks column type)
         await query(MIGRATION_SQL);
         // Then ensure all tables exist with correct types
