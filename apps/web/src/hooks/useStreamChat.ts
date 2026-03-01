@@ -311,7 +311,7 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
           id: string;
           status: string;
           result_payload?: { output?: any; error?: string; success?: boolean };
-        }>(`/api/jobs/${jobId}`, token);
+        }>(`/jobs/${jobId}`, token);
 
         if (cancelled) return;
 
