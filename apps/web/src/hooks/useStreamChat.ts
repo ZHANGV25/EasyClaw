@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useConversations } from "@/contexts/ConversationsContext";
 import { useAuthToken } from "@/hooks/useAuthToken";
-import { BASE_URL, apiGet } from "@/lib/api";
+import { BASE_URL } from "@/lib/api";
 import { Artifact } from "@/types/artifacts";
 import { AgentStep } from "@/types/activity";
 
@@ -60,6 +60,37 @@ const WELCOME_MESSAGE: ChatMessage = {
   timestamp: new Date(),
 };
 
+/** Extract text from an OpenClaw/Anthropic result payload */
+function extractResultContent(resultPayload: any): string {
+  if (!resultPayload) return "Task completed.";
+  const output = resultPayload.output;
+  if (!output) return "Task completed.";
+  if (typeof output === "string") return output;
+
+  // output.content — could be string or [{type:"text", text:"..."}]
+  if (output.content) {
+    if (typeof output.content === "string") return output.content;
+    if (Array.isArray(output.content)) {
+      return output.content
+        .filter((block: any) => block.text)
+        .map((block: any) => block.text)
+        .join("\n");
+    }
+    return String(output.content);
+  }
+
+  // output.message.content
+  if (output.message?.content) {
+    if (typeof output.message.content === "string") return output.message.content;
+    if (Array.isArray(output.message.content)) {
+      return output.message.content.map((b: any) => b.text).join("\n");
+    }
+    return String(output.message.content);
+  }
+
+  return JSON.stringify(output, null, 2);
+}
+
 export function useStreamChat(conversationId?: string): UseStreamChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -72,9 +103,13 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
   const abortRef = useRef<AbortController | null>(null);
   const assistantIdRef = useRef<string | null>(null);
   const loadedConvRef = useRef<string | null>(null);
+  const pollAbortRef = useRef(false);
   const router = useRouter();
   const { refreshConversations } = useConversations();
   const getToken = useAuthToken();
+  // Keep a stable ref to getToken so polling can use it without effect deps
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
 
   // Load conversation messages when conversationId changes
   useEffect(() => {
@@ -165,6 +200,66 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
       setIsLoadingHistory(false);
     }
   }, [messages, isLoadingHistory, hasMoreHistory, conversationId, getToken]);
+
+  /** Poll for a job result and append it to messages when done */
+  const pollJobResult = useCallback((jobId: string) => {
+    pollAbortRef.current = false;
+
+    const poll = async () => {
+      if (pollAbortRef.current) return;
+      try {
+        const token = await getTokenRef.current();
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${BASE_URL}/jobs/${jobId}`, { headers });
+        if (!res.ok) {
+          console.error(`Job poll HTTP ${res.status}`);
+          if (!pollAbortRef.current) setTimeout(poll, 5000);
+          return;
+        }
+
+        const data = await res.json();
+        if (pollAbortRef.current) return;
+
+        if (data.status === "COMPLETED" || data.status === "FAILED") {
+          let content: string;
+          if (data.status === "COMPLETED" && data.result_payload) {
+            content = extractResultContent(data.result_payload);
+          } else if (data.status === "FAILED") {
+            content = `Task failed: ${data.result_payload?.error || "Unknown error"}`;
+          } else {
+            content = "Task completed.";
+          }
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `job-result-${jobId}`,
+              role: "assistant" as const,
+              content,
+              timestamp: new Date(),
+            },
+          ]);
+          setLastJobTriggered(null);
+          return;
+        }
+
+        // Still running — poll again
+        if (!pollAbortRef.current) {
+          setTimeout(poll, 3000);
+        }
+      } catch (err) {
+        console.error("Job poll error:", err);
+        if (!pollAbortRef.current) {
+          setTimeout(poll, 5000);
+        }
+      }
+    };
+
+    // Start polling after a short delay
+    setTimeout(poll, 2000);
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -261,6 +356,8 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
           if (data.status === "QUEUED" && data.jobId) {
             setLastJobTriggered({ jobId: data.jobId, type: data.jobType || "COMPUTER_USE" });
+            // Start polling for job result immediately — no React effect needed
+            pollJobResult(data.jobId);
           }
 
           // If this was a new conversation, the backend should return the ID
@@ -293,94 +390,13 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
 
       fetchLoop();
     },
-    [conversationId, router, refreshConversations, getToken]
+    [conversationId, router, refreshConversations, getToken, pollJobResult]
   );
 
-  // Poll for job result when a job is triggered
+  // Cleanup polling on unmount
   useEffect(() => {
-    if (!lastJobTriggered) return;
-
-    const { jobId } = lastJobTriggered;
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const token = await getToken();
-        if (!token || cancelled) return;
-        const data = await apiGet<{
-          id: string;
-          status: string;
-          result_payload?: { output?: any; error?: string; success?: boolean };
-        }>(`/jobs/${jobId}`, token);
-
-        if (cancelled) return;
-
-        if (data.status === "COMPLETED" || data.status === "FAILED") {
-          let content: string;
-          if (data.status === "COMPLETED" && data.result_payload) {
-            const output = data.result_payload.output;
-            if (typeof output === "string") {
-              content = output;
-            } else if (output?.content) {
-              // Handle Anthropic message format: content can be a string
-              // or an array of content blocks [{type: "text", text: "..."}]
-              if (typeof output.content === "string") {
-                content = output.content;
-              } else if (Array.isArray(output.content)) {
-                content = output.content
-                  .filter((block: any) => block.type === "text" || block.text)
-                  .map((block: any) => block.text)
-                  .join("\n");
-              } else {
-                content = String(output.content);
-              }
-            } else if (output?.message?.content) {
-              content = typeof output.message.content === "string"
-                ? output.message.content
-                : Array.isArray(output.message.content)
-                  ? output.message.content.map((b: any) => b.text).join("\n")
-                  : String(output.message.content);
-            } else {
-              content = JSON.stringify(output, null, 2);
-            }
-          } else if (data.status === "FAILED") {
-            content = `Task failed: ${data.result_payload?.error || "Unknown error"}`;
-          } else {
-            content = "Task completed.";
-          }
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `job-result-${jobId}`,
-              role: "assistant",
-              content,
-              timestamp: new Date(),
-            },
-          ]);
-          setLastJobTriggered(null);
-          return;
-        }
-
-        // Still running — poll again
-        if (!cancelled) {
-          setTimeout(poll, 3000);
-        }
-      } catch (err) {
-        console.error("Job poll error:", err);
-        if (!cancelled) {
-          setTimeout(poll, 5000);
-        }
-      }
-    };
-
-    // Start polling after a short delay
-    const timer = setTimeout(poll, 2000);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [lastJobTriggered, getToken]);
+    return () => { pollAbortRef.current = true; };
+  }, []);
 
   return {
     messages,
