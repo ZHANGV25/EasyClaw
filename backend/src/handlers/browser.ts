@@ -11,11 +11,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     try {
         const userId = await requireAuth(event);
 
-        // Look for RUNNING or recently-completed COMPUTER_USE jobs (within 30s)
+        // Look for RUNNING or recently-completed jobs (within 30s)
         const res = await query(
-            `SELECT id, status, input_payload, result_payload, updated_at FROM jobs
+            `SELECT id, status, type, input_payload, result_payload, updated_at FROM jobs
              WHERE user_id = $1
-               AND type = 'COMPUTER_USE'
+               AND type IN ('COMPUTER_USE', 'RESEARCH')
                AND (status = 'RUNNING' OR (status IN ('COMPLETED', 'FAILED') AND updated_at > NOW() - INTERVAL '30 seconds'))
              ORDER BY
                CASE WHEN status = 'RUNNING' THEN 0 ELSE 1 END,
