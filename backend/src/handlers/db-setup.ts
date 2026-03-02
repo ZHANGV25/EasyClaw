@@ -155,6 +155,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     try {
         const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event as any) || {};
 
+        // Ad-hoc query for debugging
+        if (body.action === 'query' && body.sql) {
+            const res = await query(body.sql);
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ rows: res.rows, rowCount: res.rowCount }),
+            };
+        }
+
         // Reset stuck jobs if requested
         if (body.action === 'reset-stuck-jobs') {
             const res = await query(

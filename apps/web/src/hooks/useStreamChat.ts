@@ -322,9 +322,24 @@ export function useStreamChat(conversationId?: string): UseStreamChatReturn {
             if (typeof output === "string") {
               content = output;
             } else if (output?.content) {
-              content = output.content;
+              // Handle Anthropic message format: content can be a string
+              // or an array of content blocks [{type: "text", text: "..."}]
+              if (typeof output.content === "string") {
+                content = output.content;
+              } else if (Array.isArray(output.content)) {
+                content = output.content
+                  .filter((block: any) => block.type === "text" || block.text)
+                  .map((block: any) => block.text)
+                  .join("\n");
+              } else {
+                content = String(output.content);
+              }
             } else if (output?.message?.content) {
-              content = output.message.content;
+              content = typeof output.message.content === "string"
+                ? output.message.content
+                : Array.isArray(output.message.content)
+                  ? output.message.content.map((b: any) => b.text).join("\n")
+                  : String(output.message.content);
             } else {
               content = JSON.stringify(output, null, 2);
             }
